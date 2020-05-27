@@ -1,0 +1,27 @@
+{
+  "name": "webhoster",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@fidm/x509": "^1.2.1",
+    "@types/node": "^14.0.5",
+    "@types/tedious": "^4.0.1",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.1.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-babel": "^5.3.0",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-jsdoc": "^25.4.3",
+    "eslint-plugin-node": "^11.1.0"
+  }
+}

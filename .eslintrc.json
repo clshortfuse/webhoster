@@ -1,0 +1,78 @@
+{
+  "extends": ["airbnb-base", "plugin:node/recommended"],
+  "plugins": ["jsdoc", "babel"],
+  "env": {
+    "node": true
+  },
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "impliedStrict": true
+    }
+  },
+  "rules": {
+    "import/extensions": ["error", "always", {
+      "js": "always",
+      "mjs": "always"
+    }],
+    "import/no-useless-path-segments": ["error", {
+      "noUselessIndex": false
+    }],
+    "prefer-destructuring": ["error", {
+      "VariableDeclarator": {
+        "array": false,
+        "object": true
+      },
+      "AssignmentExpression": {
+        "array": false,
+        "object": true
+      }
+    }, {
+      "enforceForRenamedProperties": false
+    }],
+    "max-len": ["error", 120, 2, {
+      "ignoreUrls": true,
+      "ignoreComments": true,
+      "ignoreRegExpLiterals": true,
+      "ignoreStrings": true,
+      "ignoreTemplateLiterals": true
+    }],
+    "spaced-comment": ["error", "always", {
+      "line": {
+        "exceptions": ["-", "+"],
+        "markers": ["=", "!", "/"]
+      },
+      "block": {
+        "exceptions": ["-", "+"],
+        "markers": ["=", "!", ":", "::"],
+        "balanced": true
+      }
+    }],
+    "jsdoc/require-param-description": 0,
+    "jsdoc/require-returns-description": 0,
+    "jsdoc/no-undefined-types": 0,
+    "jsdoc/valid-types": 0,
+    "jsdoc/newline-after-description": ["warn", "never"],
+    "jsdoc/require-returns": ["warn", {
+      "forceReturnsWithAsync": true,
+      "forceRequireReturn": true
+    }]
+  },
+  "settings": {
+    "jsdoc": {
+      "preferredTypes": {
+        "object.": "Object.<>",
+        "object<>": "Object.<>",
+        "object": "Object"
+      },
+      "tagNamePreference": {
+        "augment": "extends",
+        "returns": "return",
+        "property": "prop",
+        "constant": "const"
+      }
+    }
+  }
+}
