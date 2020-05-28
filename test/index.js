@@ -1,5 +1,3 @@
-import { readFileSync } from 'fs';
-
 import * as httpserver from './httpserver.js';
 import * as http2server from './http2server.js';
 import * as tls from './tls.js';
@@ -13,6 +11,7 @@ import HeadersHandler from '../helpers/HeadersHandler.js';
 import RequestReader from '../helpers/RequestReader.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
 import { createRegexMiddleware } from '../middleware/regex.js';
+import CookieObject from '../helpers/CookieObject.js';
 
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
@@ -126,10 +125,27 @@ function outputMiddleware(req, res) {
 
   const resHeaders = new HeadersHandler(res.headers);
   const writer = new ResponseWriter(res);
-  resHeaders.setCookies.push(`test=${Date.now()}`);
-  resHeaders.setCookies.push(`test2=${Date.now()}`);
-  resHeaders.setCookies.push(`test3=${Date.now()}`);
-  resHeaders.setCookies.push('test=newtest;Path=/test/*');
+  resHeaders.setCookies.push(new CookieObject({
+    name: 'test',
+    value: Date.now().toString(),
+  }));
+  resHeaders.setCookies.push(new CookieObject(`test2=${Date.now()}`));
+  resHeaders.setCookies.push(new CookieObject(`test3=${Date.now()}`));
+  resHeaders.setCookies.push(new CookieObject('test=newtest;Path=/test/*'));
+  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  console.log('wiping');
+  resHeaders.setCookies.splice(0, resHeaders.setCookies.length);
+  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  console.log('pushing 1 ');
+  const held = new CookieObject(`held=${Date.now()}`);
+  resHeaders.setCookies.push(held);
+  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  console.log('unshifting 1 ');
+  resHeaders.setCookies.unshift(new CookieObject(`dolly=${Date.now()}`));
+  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  console.log('modifying held');
+  held.secure = true;
+  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
   res.status = 200;
   resHeaders.mediaType = 'application/json';
   writer.send({ now: new Date() });
@@ -155,7 +171,7 @@ function inputMiddleware(req, res) {
 
 function handleAllMiddleware() {
   DefaultMiddlewareSet.add(defaultCompressionMiddleware);
-  DefaultMiddlewareSet.add(redirectHttpsMiddleware);
+  // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
   DefaultMiddlewareSet.add(createRegexMiddleware(indexMiddleware, '^/(index.html?)?$', 'get'));
   DefaultMiddlewareSet.add(createRegexMiddleware(scriptMiddleware, '^/script.js$', 'get'));
   DefaultMiddlewareSet.add(createRegexMiddleware(outputMiddleware, '/output.json$', 'get'));
@@ -177,8 +193,8 @@ function setupHttp() {
 
 function setupHttp2() {
   const tlsOptions = tls.setup({
-    key: readFileSync('./certificates/localhost-privkey.pem'),
-    cert: readFileSync('./certificates/localhost-cert.pem'),
+    // key: readFileSync('./certificates/localhost-privkey.pem'),
+    // cert: readFileSync('./certificates/localhost-cert.pem'),
   });
 
   return http2server.start({

@@ -1,3 +1,5 @@
+import CookieObject from './CookieObject.js';
+
 /**
  * @param {string} cookieString
  * @return {[string,string][]}
@@ -14,12 +16,11 @@ function getEntriesFromCookie(cookieString) {
   return entries;
 }
 
-
 export default class HeadersHandler {
   /** @type {Object<string,string[]>} */
   #cookiesProxy = null;
 
-  /** @type {Object} */
+  /** @type {CookieObject[]} */
   #setCookiesProxy = null;
 
   constructor(headers = {}) {
@@ -209,11 +210,58 @@ export default class HeadersHandler {
     return this.#cookiesProxy;
   }
 
-  /** @return {Array<string>} */
+  /** @return {Array<CookieObject>} */
   get setCookies() {
-    if (!this.headers['set-cookie']) {
-      this.headers['set-cookie'] = [];
+    if (!this.#setCookiesProxy) {
+      if (!this.headers['set-cookie']) {
+        this.headers['set-cookie'] = [];
+      }
+      const instance = this;
+      /** @type {ProxyHandler<CookieObject>} */
+      const CookieObjectProxyHandler = {
+        set: (cookieTarget, cookieProp, cookieValue, receiver) => {
+          Reflect.set(cookieTarget, cookieProp, cookieValue, receiver);
+          const index = this.#setCookiesProxy.indexOf(cookieTarget);
+          if (index !== -1) {
+            // Force reflection
+            Reflect.set(this.#setCookiesProxy, index, cookieTarget);
+          }
+          return true;
+        },
+      };
+      /** @type {CookieObject[]} */
+      const values = instance.headers['set-cookie']
+        .map((/** @type {string} */ setCookie) => new Proxy(new CookieObject(setCookie), CookieObjectProxyHandler));
+      this.#setCookiesProxy = new Proxy(values, {
+        get: (arrayTarget, arrayProp, receiver) => {
+          if (typeof arrayProp !== 'string') {
+            return Reflect.get(arrayTarget, arrayProp, receiver);
+          }
+          if (arrayProp === 'length') {
+            return instance.headers['set-cookie'].length;
+          }
+          if (Number.isNaN(parseInt(arrayProp, 10))) {
+            return Reflect.get(arrayTarget, arrayProp, receiver);
+          }
+          const entry = instance.headers['set-cookie'][arrayProp];
+          if (typeof entry === 'undefined') {
+            return entry;
+          }
+          if (!arrayTarget[arrayProp]) {
+            arrayTarget[arrayProp] = new Proxy(new CookieObject(entry), CookieObjectProxyHandler);
+          }
+          return Reflect.get(arrayTarget, arrayProp, receiver);
+        },
+        set: (arrayTarget, arrayProp, value, receiver) => {
+          Reflect.set(arrayTarget, arrayProp, value, receiver);
+          if (typeof arrayProp !== 'string') return true;
+          if (value instanceof CookieObject) {
+            instance.headers['set-cookie'][arrayProp] = value.toString();
+          }
+          return true;
+        },
+      });
     }
-    return this.headers['set-cookie'];
+    return this.#setCookiesProxy;
   }
 }
