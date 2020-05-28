@@ -1,30 +1,34 @@
+/* eslint-disable no-console */
+
 import * as httpserver from './httpserver.js';
 import * as http2server from './http2server.js';
 import * as tls from './tls.js';
 import { HTTPS_PORT } from './constants.js';
 
 import {
-  handleHttpRequest, handleHttp2Stream, DefaultMiddlewareSet,
+  handleHttpRequest, handleHttp2Stream, DefaultMiddlewareChain, MiddlewareChains,
 } from '../lib/RequestHandler.js';
 import ResponseWriter from '../helpers/ResponseWriter.js';
 import HeadersHandler from '../helpers/HeadersHandler.js';
 import RequestReader from '../helpers/RequestReader.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
-import { createRegexMiddleware } from '../middleware/regex.js';
+import { createMethodMiddleware } from '../middleware/method.js';
 import CookieObject from '../helpers/CookieObject.js';
+import { createPathMiddleware, createPathRegexMiddleware } from '../middleware/path.js';
+import { createCORSMiddleware } from '../middleware/cors.js';
 
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
+/** @typedef {import('../lib/RequestHandler.js').MiddlewareResult} MiddlewareResult */
+/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction
 
 /**
  * Redirect to HTTPS/2
- * @param {HttpRequest} req
- * @param {HttpResponse} res
- * @return {Promise<boolean>}
+ * @type {import('../lib/RequestHandler.js').MiddlewareFunction}
  */
 function redirectHttpsMiddleware(req, res) {
   if (req.url.protocol !== 'http:') {
-    return Promise.resolve(false);
+    return null;
   }
   const url = new URL(req.url.href);
   url.protocol = 'https:';
@@ -32,41 +36,32 @@ function redirectHttpsMiddleware(req, res) {
   const Location = url.href;
   res.status = 301;
   res.headers.Location = Location;
-  return Promise.resolve(true);
+  return { completed: true };
 }
 
-/**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
- * @return {Promise<boolean>}
- */
+/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
 function indexMiddleware(req, res) {
   const writer = new ResponseWriter(res);
   console.log('indexMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
-  return Promise.resolve().then(() => {
-    if (res.canPushPath) {
-      res.pushPath('/script.js').catch(console.error);
-      res.pushPath('/fake.png').catch(console.error);
-    }
-    writer.sendString(/* html */ `
-      <html>
-        <head><script src="script.js"></script></head>
-        </body>
-          ${new Date()}
-          <img src="fake.png"/>
-        </body>
-      </html>
-    `);
-  }).then(() => true);
+  if (res.canPushPath) {
+    res.pushPath('/script.js').catch(console.error);
+    res.pushPath('/fake.png').catch(console.error);
+  }
+  writer.sendString(/* html */ `
+    <html>
+      <head><script src="script.js"></script></head>
+      </body>
+        ${new Date()}
+        <img src="fake.png"/>
+      </body>
+    </html>
+  `);
+  return { completed: true };
 }
 
-/**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
- * @return {Promise<boolean>}
- */
+/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
 function scriptMiddleware(req, res) {
   const writer = new ResponseWriter(res);
   console.log('scriptMiddleware');
@@ -88,19 +83,15 @@ function scriptMiddleware(req, res) {
           data += Math.random().toString(36).substr(2, 16);
         }
         console.log(data);
-        fetch('input.json', { method: 'POST', body: JSON.stringify(data) })
+        fetch('http://127.0.0.1:8080/input.json', { method: 'POST', body: JSON.stringify(data) })
           .then(console.log('done')).catch(console.error);
       `);
-      resolve(true);
+      resolve({ completed: true });
     }, 0);
   });
 }
 
-/**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
- * @return {Promise<boolean>}
- */
+/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
 function outputMiddleware(req, res) {
   const reqHeaders = new HeadersHandler(req.headers);
   console.log(req.headers.Cookie);
@@ -141,7 +132,7 @@ function outputMiddleware(req, res) {
   resHeaders.setCookies.push(held);
   resHeaders.setCookies.forEach((c) => console.log(c.toString()));
   console.log('unshifting 1 ');
-  resHeaders.setCookies.unshift(new CookieObject(`dolly=${Date.now()}`));
+  resHeaders.setCookies.unshift(new CookieObject(`unshift=${Date.now()}`));
   resHeaders.setCookies.forEach((c) => console.log(c.toString()));
   console.log('modifying held');
   held.secure = true;
@@ -149,14 +140,10 @@ function outputMiddleware(req, res) {
   res.status = 200;
   resHeaders.mediaType = 'application/json';
   writer.send({ now: new Date() });
-  return Promise.resolve(true);
+  return { completed: true };
 }
 
-/**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
- * @return {Promise<boolean>}
- */
+/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
 function inputMiddleware(req, res) {
   console.log('inputMiddleware');
   const reader = new RequestReader(req);
@@ -165,22 +152,41 @@ function inputMiddleware(req, res) {
     const writer = new ResponseWriter(res);
     res.status = 200;
     writer.send({ now: new Date() });
-    return Promise.resolve(true);
+    return { completed: true };
   });
 }
 
 function handleAllMiddleware() {
-  DefaultMiddlewareSet.add(defaultCompressionMiddleware);
+  DefaultMiddlewareChain.push(createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }));
+  DefaultMiddlewareChain.push(defaultCompressionMiddleware);
   // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
-  DefaultMiddlewareSet.add(createRegexMiddleware(indexMiddleware, '^/(index.html?)?$', 'get'));
-  DefaultMiddlewareSet.add(createRegexMiddleware(scriptMiddleware, '^/script.js$', 'get'));
-  DefaultMiddlewareSet.add(createRegexMiddleware(outputMiddleware, '/output.json$', 'get'));
-  DefaultMiddlewareSet.add(createRegexMiddleware(inputMiddleware, '/input.json$', 'post'));
-  DefaultMiddlewareSet.add(((req, res) => {
-    console.log('Unknown', req.url.toString());
-    res.status = 404;
-    return Promise.resolve(true);
-  }));
+  MiddlewareChains.add([
+    createMethodMiddleware('GET'),
+    createPathRegexMiddleware('^/(index.html?)?$'),
+    indexMiddleware,
+  ]);
+  MiddlewareChains.add([
+    createMethodMiddleware('GET'),
+    createPathMiddleware('/script.js'),
+    scriptMiddleware,
+  ]);
+  MiddlewareChains.add([
+    createMethodMiddleware('GET'),
+    createPathRegexMiddleware('/output.json$'),
+    outputMiddleware,
+  ]);
+  MiddlewareChains.add([
+    createMethodMiddleware('POST'),
+    createPathMiddleware('/input.json'),
+    inputMiddleware,
+  ]);
+  MiddlewareChains.add([
+    (req, res) => {
+      console.log('Unknown', req.url.toString());
+      res.status = 404;
+      return { completed: true };
+    },
+  ]);
 }
 
 

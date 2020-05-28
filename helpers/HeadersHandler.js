@@ -234,7 +234,7 @@ export default class HeadersHandler {
         .map((/** @type {string} */ setCookie) => new Proxy(new CookieObject(setCookie), CookieObjectProxyHandler));
       this.#setCookiesProxy = new Proxy(values, {
         get: (arrayTarget, arrayProp, receiver) => {
-          if (typeof arrayProp !== 'string') {
+          if (typeof arrayProp === 'string') {
             return Reflect.get(arrayTarget, arrayProp, receiver);
           }
           if (arrayProp === 'length') {

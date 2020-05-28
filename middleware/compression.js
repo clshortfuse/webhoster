@@ -6,6 +6,7 @@ export const DEFAULT_MAX_BUFFER = 1024;
 /** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
+/** @typedef {import('../lib/RequestHandler.js').MiddlewareResult} MiddlewareResult
 
 /**
  * @typedef CompressionMiddlewareOptions
@@ -19,7 +20,7 @@ const COMPATIBLE_ENCODINGS = ['br', 'gzip', 'deflate', 'identity', '*'];
  * @param {HttpRequest} req
  * @param {HttpResponse} res
  * @param {CompressionMiddlewareOptions} [options]
- * @return {Promise<boolean>}
+ * @return {MiddlewareResult}
  */
 function executeMiddleware(req, res, options = {}) {
   const acceptString = req.headers['accept-encoding']?.toLowerCase();
@@ -41,11 +42,11 @@ function executeMiddleware(req, res, options = {}) {
     }
     if (!encoding && options.respondNotAcceptable !== false) {
       res.status = 406;
-      return Promise.resolve(true);
+      return { completed: true };
     }
   }
   if (!encoding || encoding === 'identity' || encoding === '*') {
-    return Promise.resolve(false);
+    return {};
   }
   res.headers['content-encoding'] = encoding;
   let output;
@@ -89,7 +90,7 @@ function executeMiddleware(req, res, options = {}) {
   output.on('end', () => {
     if (!res.headersSent) {
       // Set Content-Length in Header
-      res.headers['content-length'] = outputSize;
+      res.headers['Content-Length'] = outputSize;
       res.sendHeaders();
     }
 
@@ -100,7 +101,7 @@ function executeMiddleware(req, res, options = {}) {
     // End response stream
     res.originalStream.end();
   });
-  return Promise.resolve(false);
+  return {};
 }
 
 /**
