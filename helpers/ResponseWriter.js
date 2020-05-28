@@ -93,5 +93,4 @@ export default class ResponseWriter {
     if (Buffer.isBuffer(value)) return this.sendBuffer(value);
     return this.sendJson(value);
   }
-
 }
