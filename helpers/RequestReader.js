@@ -98,7 +98,7 @@ export default class RequestReader {
     });
   }
 
-  /** @return {Promise<Object>} */
+  /** @return {Promise<Object<string,any>>} */
   readJSON() {
     return this.readString().then(JSON.parse);
   }
@@ -171,14 +171,14 @@ export default class RequestReader {
     return this.readUrlEncoded().then((tupleArray) => new Map(tupleArray));
   }
 
-  /** @return {Promise<Object<string, string>>} */
+  /** @return {Promise<Object<string,string>>} */
   readUrlEncodedAsObject() {
     return this.readUrlEncoded().then((tupleArray) => Object.fromEntries(tupleArray));
   }
 
   /**
    * Returns `readJSON()`, `readUrlEncodedAsObject`, or `Promise<null>` based on Content-Type
-   * @return {Promise<Object|null>}
+   * @return {Promise<Object<string, any>|null>}
    */
   readObject() {
     const hp = new HeadersParser(this.request.headers);
@@ -195,7 +195,7 @@ export default class RequestReader {
 
   /**
    * Returns `readJSON()`, `readUrlEncoded`, `readBuffer()`, or `readString()` based on Content-Type
-   * @return {Promise<Object|string|Buffer>}
+   * @return {Promise<Object<string,any>|string|Buffer>}
    */
   read() {
     const hp = new HeadersParser(this.request.headers);

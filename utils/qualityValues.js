@@ -1,17 +1,18 @@
+/** @typedef {{q:number?} & {[key:string]:string}} ParsedQualityValues */
+
 /**
  * @param {string} input
- * @return {Map<string,Object & {q:number?}>}
+ * @return {Map<string, ParsedQualityValues>}
  */
 export function parseQualityValues(input) {
   if (!input || !input.trim()) {
     return new Map();
   }
-  /** @type {[string, Object & {q:number}][]} */
   const tupleArray = input
     .split(',')
     .map((values) => {
       const [value, ...specifiers] = values.split(';');
-      return /** @type {[string, Object & {q:number?}]} */ ([
+      return /** @type {[string, ParsedQualityValues]} */ ([
         value.trim(),
         {
           ...Object.assign({}, ...specifiers.map((pair) => {
