@@ -27,7 +27,7 @@
  * @param {CORSMiddlewareOptions} [options]
  * @return {MiddlewareResult}
  */
-function executeMiddleware(req, res, options = {}) {
+function executeCORSMiddleware(req, res, options = {}) {
   if (('origin' in req.headers) === false) {
     // not CORS
     return {};
@@ -86,10 +86,12 @@ function executeMiddleware(req, res, options = {}) {
  * @return {MiddlewareFunction}
  */
 export function createCORSMiddleware(options = {}) {
-  return (req, res) => executeMiddleware(req, res, options);
+  return function corsMiddleware(req, res) {
+    return executeCORSMiddleware(req, res, options);
+  };
 }
 
 /** @type {MiddlewareFunction}  */
 export function defaultCORSMiddleware(req, res) {
-  return executeMiddleware(req, res);
+  return executeCORSMiddleware(req, res);
 }

@@ -157,36 +157,35 @@ function inputMiddleware(req, res) {
 }
 
 function handleAllMiddleware() {
-  DefaultMiddlewareChain.push(createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }));
-  DefaultMiddlewareChain.push(defaultCompressionMiddleware);
+  const middlewareObject = {
+    cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
+    compression: defaultCompressionMiddleware,
+  };
+  DefaultMiddlewareChain.push(middlewareObject);
+  const mapTest = new Map();
+  const getMiddlewareArray = [
+    createMethodMiddleware('GET'),
+    [createPathRegexMiddleware('^/(index.html?)?$'), indexMiddleware],
+    [createPathMiddleware('/script.js'), scriptMiddleware],
+    [createPathRegexMiddleware('/output.json$'), outputMiddleware],
+  ];
+  mapTest.set('gets', getMiddlewareArray);
+  MiddlewareSets.add(mapTest);
   // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
-  MiddlewareSets.add([
-    createMethodMiddleware('GET'),
-    createPathRegexMiddleware('^/(index.html?)?$'),
-    indexMiddleware,
-  ]);
-  MiddlewareSets.add([
-    createMethodMiddleware('GET'),
-    createPathMiddleware('/script.js'),
-    scriptMiddleware,
-  ]);
-  MiddlewareSets.add([
-    createMethodMiddleware('GET'),
-    createPathRegexMiddleware('/output.json$'),
-    outputMiddleware,
-  ]);
-  MiddlewareSets.add([
-    createMethodMiddleware('POST'),
-    createPathMiddleware('/input.json'),
-    inputMiddleware,
-  ]);
-  MiddlewareSets.add([
-    (req, res) => {
+
+  // Inline middleware adding
+  MiddlewareSets.add({
+    myPostMiddlewares: [
+      createMethodMiddleware('POST'),
+      [createPathMiddleware('/input.json'), inputMiddleware],
+    ],
+    unknownFile(req, res) {
       console.log('Unknown', req.url.toString());
       res.status = 404;
       return { completed: true };
     },
-  ]);
+  });
+  console.dir(MiddlewareSets, { colors: true, depth: null });
 }
 
 

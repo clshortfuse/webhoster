@@ -22,7 +22,7 @@ const COMPATIBLE_ENCODINGS = ['br', 'gzip', 'deflate', 'identity', '*'];
  * @param {CompressionMiddlewareOptions} [options]
  * @return {MiddlewareResult}
  */
-function executeMiddleware(req, res, options = {}) {
+function executeCompressionMiddleware(req, res, options = {}) {
   const acceptString = req.headers['accept-encoding']?.toLowerCase();
   const encodings = parseQualityValues(acceptString);
   let encoding = COMPATIBLE_ENCODINGS[0];
@@ -109,10 +109,12 @@ function executeMiddleware(req, res, options = {}) {
  * @return {MiddlewareFunction}
  */
 export function createCompressionMiddleware(options = {}) {
-  return (req, res) => executeMiddleware(req, res, options);
+  return function compressionMiddleware(req, res) {
+    return executeCompressionMiddleware(req, res, options);
+  };
 }
 
 /** @type {MiddlewareFunction}  */
 export function defaultCompressionMiddleware(req, res) {
-  return executeMiddleware(req, res);
+  return executeCompressionMiddleware(req, res);
 }
