@@ -177,8 +177,8 @@ export default class RequestReader {
   }
 
   /**
-   * Returns `readJSON()`, `readUrlEncodedAsObject`, or `null` based on Content-Type
-   * @return {Object}
+   * Returns `readJSON()`, `readUrlEncodedAsObject`, or `Promise<null>` based on Content-Type
+   * @return {Promise<Object|null>}
    */
   readObject() {
     const hp = new HeadersParser(this.request.headers);
@@ -195,7 +195,7 @@ export default class RequestReader {
 
   /**
    * Returns `readJSON()`, `readUrlEncoded`, `readBuffer()`, or `readString()` based on Content-Type
-   * @return {Object|string|Buffer}
+   * @return {Promise<Object|string|Buffer>}
    */
   read() {
     const hp = new HeadersParser(this.request.headers);
