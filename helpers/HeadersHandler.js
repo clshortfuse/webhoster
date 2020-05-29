@@ -37,12 +37,21 @@ export default class HeadersHandler {
     this.headers['content-type'] = value;
   }
 
-  /** @return {string} */
+  /**
+   * The `media-type` directive of `Content-Type`.
+   * The MIME type of the resource or the data.
+   * (Always lowercase)
+   * @return {string}
+   */
   get mediaType() {
     return this.contentType?.split(';')[0].trim().toLowerCase();
   }
 
-  /** @return {string} */
+  /**
+   * The `charset` direct of `Content-Type`.
+   * The character encoding standard.
+   * (Always lowercase)
+   * @return {string} */
   get charset() {
     let value = null;
     // eslint-disable-next-line no-unused-expressions

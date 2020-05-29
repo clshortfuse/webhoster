@@ -102,4 +102,117 @@ export default class RequestReader {
   readJSON() {
     return this.readString().then(JSON.parse);
   }
+
+  /**
+   * The application/x-www-form-urlencoded format is in many ways an aberrant monstrosity,
+   * the result of many years of implementation accidents and compromises leading to a set of
+   * requirements necessary for interoperability, but in no way representing good design practices.
+   * In particular, readers are cautioned to pay close attention to the twisted details
+   * involving repeated (and in some cases nested) conversions between character encodings and byte sequences.
+   * Unfortunately the format is in widespread use due to the prevalence of HTML forms. [HTML]
+   * @return {Promise<[string, string][]>}
+   */
+  readUrlEncoded() {
+    // https://url.spec.whatwg.org/#urlencoded-parsing
+    const hp = new HeadersParser(this.request.headers);
+    return this.readBuffer().then((buffer) => {
+      const sequences = [];
+      let startIndex = 0;
+      for (let i = 0; i < buffer.length; i += 1) {
+        if (buffer[i] === 0x26) {
+          sequences.push(buffer.subarray(startIndex, i));
+          startIndex = i + 1;
+        }
+        if (i === buffer.length - 1) {
+          sequences.push(buffer.subarray(startIndex, i));
+        }
+      }
+      /** @type {[string, string][]} */
+      const output = [];
+      sequences.forEach((bytes) => {
+        if (!bytes.length) return;
+
+        // Find 0x3D and replace 0x2B in one loop for better performance
+        let indexOf0x3D = -1;
+        for (let i = 0; i < bytes.length; i += 1) {
+          switch (bytes[i]) {
+            case 0x3D:
+              if (indexOf0x3D === -1) {
+                indexOf0x3D = i;
+              }
+              break;
+            case 0x2B:
+              // Replace bytes on original stream for memory conservation
+              // eslint-disable-next-line no-param-reassign
+              bytes[i] = 0x20;
+              break;
+            default:
+          }
+        }
+        let name;
+        let value;
+        if (indexOf0x3D === -1) {
+          name = bytes;
+          value = bytes.subarray(bytes.length, 0);
+        } else {
+          name = bytes.subarray(0, indexOf0x3D);
+          value = bytes.subarray(indexOf0x3D + 1);
+        }
+        const nameString = decodeURIComponent(name.toString(hp.charset || 'utf-8'));
+        const valueString = decodeURIComponent(value.toString(hp.charset || 'utf-8'));
+        output.push([nameString, valueString]);
+      });
+      return output;
+    });
+  }
+
+  /** @return {Promise<Map<string,string>>} */
+  readUrlEncodedAsMap() {
+    return this.readUrlEncoded().then((tupleArray) => new Map(tupleArray));
+  }
+
+  /** @return {Promise<Object<string, string>>} */
+  readUrlEncodedAsObject() {
+    return this.readUrlEncoded().then((tupleArray) => Object.fromEntries(tupleArray));
+  }
+
+  /**
+   * Returns `readJSON()`, `readUrlEncodedAsObject`, or `null` based on Content-Type
+   * @return {Object}
+   */
+  readObject() {
+    const hp = new HeadersParser(this.request.headers);
+    const contentType = hp.contentType?.toLowerCase() ?? '';
+    switch (contentType) {
+      case 'application/json':
+        return this.readJSON();
+      case 'application/x-www-form-urlencoded':
+        return this.readUrlEncodedAsObject();
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Returns `readJSON()`, `readUrlEncoded`, `readBuffer()`, or `readString()` based on Content-Type
+   * @return {Object|string|Buffer}
+   */
+  read() {
+    const hp = new HeadersParser(this.request.headers);
+    const mediaType = hp.mediaType ?? '';
+    switch (mediaType) {
+      case 'application/json':
+        return this.readJSON();
+      case 'application/x-www-form-urlencoded':
+        return this.readUrlEncoded();
+      case 'application/octet-stream':
+      case '':
+        return this.readBuffer();
+      default:
+        if (mediaType.startsWith('text')) {
+          return this.readString();
+        }
+        return this.readBuffer();
+    }
+  }
 }

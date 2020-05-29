@@ -53,15 +53,15 @@ export default class ResponseWriter {
   }
 
   /**
-   * Sets charset to 'utf8' if blank,
-   * and passes Buffer.from to .sendBuffer()
+   * Sets `charset` to `utf-8` if blank,
+   * and passes `Buffer.from` result to `.sendBuffer()`
    * @param {string} string
    * @return {void}
    */
   sendString(string) {
     const hp = new HeadersParser(this.response.headers);
     if (!hp.charset) {
-      hp.charset = 'utf8';
+      hp.charset = 'utf-8';
     }
     const content = Buffer.from(string, hp.charset);
     this.sendBuffer(content);
