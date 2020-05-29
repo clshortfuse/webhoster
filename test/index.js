@@ -6,7 +6,7 @@ import * as tls from './tls.js';
 import { HTTPS_PORT } from './constants.js';
 
 import {
-  handleHttpRequest, handleHttp2Stream, DefaultMiddlewareChain, MiddlewareChains,
+  handleHttpRequest, handleHttp2Stream, DefaultMiddlewareChain, MiddlewareSets,
 } from '../lib/RequestHandler.js';
 import ResponseWriter from '../helpers/ResponseWriter.js';
 import HeadersHandler from '../helpers/HeadersHandler.js';
@@ -160,27 +160,27 @@ function handleAllMiddleware() {
   DefaultMiddlewareChain.push(createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }));
   DefaultMiddlewareChain.push(defaultCompressionMiddleware);
   // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
-  MiddlewareChains.add([
+  MiddlewareSets.add([
     createMethodMiddleware('GET'),
     createPathRegexMiddleware('^/(index.html?)?$'),
     indexMiddleware,
   ]);
-  MiddlewareChains.add([
+  MiddlewareSets.add([
     createMethodMiddleware('GET'),
     createPathMiddleware('/script.js'),
     scriptMiddleware,
   ]);
-  MiddlewareChains.add([
+  MiddlewareSets.add([
     createMethodMiddleware('GET'),
     createPathRegexMiddleware('/output.json$'),
     outputMiddleware,
   ]);
-  MiddlewareChains.add([
+  MiddlewareSets.add([
     createMethodMiddleware('POST'),
     createPathMiddleware('/input.json'),
     inputMiddleware,
   ]);
-  MiddlewareChains.add([
+  MiddlewareSets.add([
     (req, res) => {
       console.log('Unknown', req.url.toString());
       res.status = 404;
