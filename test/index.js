@@ -12,9 +12,9 @@ import ResponseWriter from '../helpers/ResponseWriter.js';
 import HeadersHandler from '../helpers/HeadersHandler.js';
 import RequestReader from '../helpers/RequestReader.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
-import { createMethodMiddleware } from '../middleware/method.js';
+import { createMethodFilter } from '../middleware/method.js';
 import CookieObject from '../helpers/CookieObject.js';
-import { createPathMiddleware, createPathRegexMiddleware } from '../middleware/path.js';
+import { createPathFilter, createPathRegexFilter } from '../middleware/path.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
 
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
@@ -156,6 +156,7 @@ function inputMiddleware(req, res) {
 }
 
 const USE_HTTPS_REDIRECT = false;
+const SHOULD_CRASH = false;
 
 function handleAllMiddleware() {
   // Conditional statement
@@ -169,26 +170,31 @@ function handleAllMiddleware() {
   MiddlewareSets.add(mapTest);
   /** @type {any} */
   const getMiddlewareArray = [
-    createMethodMiddleware('GET'),
-    [createPathRegexMiddleware('^/(index.html?)?$'), indexMiddleware],
+    createMethodFilter('GET'),
+    [createPathRegexFilter('^/(index.html?)?$'), indexMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
   getMiddlewareArray.push(
-    [createPathMiddleware('/script.js'), scriptMiddleware],
+    [createPathFilter('/script.js'), scriptMiddleware],
   );
   // Add terminator middleware
   getMiddlewareArray.push(
-    [createPathRegexMiddleware('/output.json$'), outputMiddleware, 'end'],
+    [createPathRegexFilter('/output.json$'), outputMiddleware, 'end'],
   );
 
   // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
 
-  // Inline middleware adding
+  // Inline middleware and filter adding
+
   MiddlewareSets.add({
     myPostMiddlewares: [
-      createMethodMiddleware('POST'),
-      [createPathMiddleware('/input.json'), inputMiddleware],
+      createMethodFilter('POST'),
+      [createPathFilter('/input.json'), inputMiddleware],
+    ],
+    inlineFilter: [
+      () => SHOULD_CRASH,
+      () => { throw new Error('Break not called!'); },
     ],
     unknownFile(req, res) {
       console.log('Unknown', req.url.toString());

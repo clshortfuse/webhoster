@@ -1,34 +1,34 @@
 import { relative } from 'path';
 
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../lib/RequestHandler.js').MiddlewareFilter} MiddlewareFilter */
 
 /**
  * @param {string[]} paths
- * @return {MiddlewareFunction}
+ * @return {MiddlewareFilter}
  */
-export function createPathMiddleware(...paths) {
+export function createPathFilter(...paths) {
   return function pathMiddleware(req) {
-    return paths.every((path) => path !== req.url.pathname) ? 'break' : 'continue';
+    return paths.some((path) => path === req.url.pathname);
   };
 }
 
 /**
  * @param {string|RegExp} path
- * @return {MiddlewareFunction}
+ * @return {MiddlewareFilter}
  */
-export function createPathRegexMiddleware(path) {
+export function createPathRegexFilter(path) {
   const pathRegex = (typeof path === 'string') ? RegExp(path, 'i') : path;
   return function pathMiddleware(req) {
-    return pathRegex?.test(req.url.pathname) === false ? 'break' : 'continue';
+    return pathRegex?.test(req.url.pathname) === true;
   };
 }
 
 /**
  * @param {string[]} paths
- * @return {MiddlewareFunction}
+ * @return {MiddlewareFilter}
  */
-export function createPathRelativeMiddleware(...paths) {
+export function createPathRelativeFilter(...paths) {
   return function pathMiddleware(req) {
-    return paths.every((path) => relative(path, req.url.pathname).startsWith('..')) ? 'break' : 'continue';
+    return paths.some((path) => !relative(path, req.url.pathname).startsWith('..'));
   };
 }

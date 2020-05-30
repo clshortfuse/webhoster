@@ -1,23 +1,23 @@
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../lib/RequestHandler.js').MiddlewareFilter} MiddlewareFilter */
 /** @typedef {import('../lib/HttpRequest.js').RequestMethod} RequestMethod */
 
 /**
  * @param {RequestMethod[]} methods
- * @return {MiddlewareFunction}
+ * @return {MiddlewareFilter}
  */
-export function createMethodMiddleware(...methods) {
-  return function methodMiddleware(req) {
-    return methods.every((method) => method.toUpperCase() !== req.method) ? 'break' : 'continue';
+export function createMethodFilter(...methods) {
+  return function methodFilter(req) {
+    return methods.some((method) => method.toUpperCase() === req.method);
   };
 }
 
 /**
  * @param {RequestMethod|RegExp} method
- * @return {MiddlewareFunction}
+ * @return {MiddlewareFilter}
  */
-export function createMethodRegexMiddleware(method) {
+export function createMethodRegexFilter(method) {
   const pathRegex = (typeof method === 'string') ? RegExp(method, 'i') : method;
-  return function methodMiddleware(req) {
-    return !pathRegex?.test(req.method) ? 'break' : 'continue';
+  return function methodFilter(req) {
+    return pathRegex?.test(req.method) === true;
   };
 }
