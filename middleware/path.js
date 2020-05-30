@@ -8,7 +8,7 @@ import { relative } from 'path';
  */
 export function createPathMiddleware(...paths) {
   return function pathMiddleware(req) {
-    return { break: paths.every((path) => path !== req.url.pathname) };
+    return paths.every((path) => path !== req.url.pathname) ? 'break' : 'continue';
   };
 }
 
@@ -19,7 +19,7 @@ export function createPathMiddleware(...paths) {
 export function createPathRegexMiddleware(path) {
   const pathRegex = (typeof path === 'string') ? RegExp(path, 'i') : path;
   return function pathMiddleware(req) {
-    return { break: pathRegex?.test(req.url.pathname) === false };
+    return pathRegex?.test(req.url.pathname) === false ? 'break' : 'continue';
   };
 }
 
@@ -29,6 +29,6 @@ export function createPathRegexMiddleware(path) {
  */
 export function createPathRelativeMiddleware(...paths) {
   return function pathMiddleware(req) {
-    return { break: paths.every((path) => relative(path, req.url.pathname).startsWith('..')) };
+    return paths.every((path) => relative(path, req.url.pathname).startsWith('..')) ? 'break' : 'continue';
   };
 }

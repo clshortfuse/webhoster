@@ -42,11 +42,11 @@ function executeCompressionMiddleware(req, res, options = {}) {
     }
     if (!encoding && options.respondNotAcceptable !== false) {
       res.status = 406;
-      return { completed: true };
+      return 'end';
     }
   }
   if (!encoding || encoding === 'identity' || encoding === '*') {
-    return {};
+    return 'continue';
   }
   res.headers['content-encoding'] = encoding;
   let output;
@@ -101,7 +101,7 @@ function executeCompressionMiddleware(req, res, options = {}) {
     // End response stream
     res.originalStream.end();
   });
-  return {};
+  return 'continue';
 }
 
 /**

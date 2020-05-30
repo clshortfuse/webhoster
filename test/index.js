@@ -36,7 +36,7 @@ function redirectHttpsMiddleware(req, res) {
   const Location = url.href;
   res.status = 301;
   res.headers.Location = Location;
-  return { completed: true };
+  return 'end';
 }
 
 /** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
@@ -58,7 +58,7 @@ function indexMiddleware(req, res) {
       </body>
     </html>
   `);
-  return { completed: true };
+  return 'end';
 }
 
 /** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
@@ -86,7 +86,7 @@ function scriptMiddleware(req, res) {
         fetch('http://127.0.0.1:8080/input.json', { method: 'POST', body: JSON.stringify(data) })
           .then(console.log('done')).catch(console.error);
       `);
-      resolve({ completed: true });
+      resolve('end');
     }, 0);
   });
 }
@@ -140,7 +140,6 @@ function outputMiddleware(req, res) {
   res.status = 200;
   resHeaders.mediaType = 'application/json';
   writer.send({ now: new Date() });
-  return { completed: true };
 }
 
 /** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
@@ -152,25 +151,37 @@ function inputMiddleware(req, res) {
     const writer = new ResponseWriter(res);
     res.status = 200;
     writer.send({ now: new Date() });
-    return { completed: true };
+    return 'end';
   });
 }
 
+const USE_HTTPS_REDIRECT = false;
+
 function handleAllMiddleware() {
+  // Conditional statement
+  DefaultMiddlewareChain.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
     cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
     compression: defaultCompressionMiddleware,
   };
   DefaultMiddlewareChain.push(middlewareObject);
   const mapTest = new Map();
+  MiddlewareSets.add(mapTest);
+  /** @type {any} */
   const getMiddlewareArray = [
     createMethodMiddleware('GET'),
     [createPathRegexMiddleware('^/(index.html?)?$'), indexMiddleware],
-    [createPathMiddleware('/script.js'), scriptMiddleware],
-    [createPathRegexMiddleware('/output.json$'), outputMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
-  MiddlewareSets.add(mapTest);
+  // Modify after insertion
+  getMiddlewareArray.push(
+    [createPathMiddleware('/script.js'), scriptMiddleware],
+  );
+  // Add terminator middleware
+  getMiddlewareArray.push(
+    [createPathRegexMiddleware('/output.json$'), outputMiddleware, 'end'],
+  );
+
   // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
 
   // Inline middleware adding
@@ -182,9 +193,9 @@ function handleAllMiddleware() {
     unknownFile(req, res) {
       console.log('Unknown', req.url.toString());
       res.status = 404;
-      return { completed: true };
     },
   });
+
   console.dir(MiddlewareSets, { colors: true, depth: null });
 }
 

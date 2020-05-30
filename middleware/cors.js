@@ -30,7 +30,7 @@
 function executeCORSMiddleware(req, res, options = {}) {
   if (('origin' in req.headers) === false) {
     // not CORS
-    return {};
+    return 'continue';
   }
   if (!options.allowOrigin) {
     // Unspecified default of '*'
@@ -72,13 +72,13 @@ function executeCORSMiddleware(req, res, options = {}) {
     res.status = 200;
     res.headers['Content-Length'] = 2;
     res.payload.write('OK', 'ascii');
-    return { completed: true };
+    return 'end';
   }
 
   if (options.exposeHeaders) {
     res.headers['Access-Control-Expose-Headers'] = options;
   }
-  return {};
+  return 'continue';
 }
 
 /**

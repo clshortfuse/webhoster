@@ -7,7 +7,7 @@
  */
 export function createMethodMiddleware(...methods) {
   return function methodMiddleware(req) {
-    return { break: methods.every((method) => method.toUpperCase() !== req.method) };
+    return methods.every((method) => method.toUpperCase() !== req.method) ? 'break' : 'continue';
   };
 }
 
@@ -18,6 +18,6 @@ export function createMethodMiddleware(...methods) {
 export function createMethodRegexMiddleware(method) {
   const pathRegex = (typeof method === 'string') ? RegExp(method, 'i') : method;
   return function methodMiddleware(req) {
-    return { break: !pathRegex?.test(req.method) };
+    return !pathRegex?.test(req.method) ? 'break' : 'continue';
   };
 }
