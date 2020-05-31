@@ -6,27 +6,27 @@ import * as tls from './tls.js';
 import { HTTPS_PORT } from './constants.js';
 
 import {
-  handleHttpRequest, handleHttp2Stream, DefaultMiddlewareChain, MiddlewareSets,
+  handleHttpRequest,
+  handleHttp2Stream,
+  DefaultMiddlewareChain,
+  MiddlewareSets,
+  AllMiddleware,
+  DefaultMiddlewareErrorHandlers,
 } from '../lib/RequestHandler.js';
 import ResponseWriter from '../helpers/ResponseWriter.js';
-import HeadersHandler from '../helpers/HeadersHandler.js';
 import RequestReader from '../helpers/RequestReader.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
 import { createMethodFilter } from '../middleware/method.js';
-import CookieObject from '../helpers/CookieObject.js';
 import { createPathFilter, createPathRegexFilter } from '../middleware/path.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
-
-/** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
-/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareResult} MiddlewareResult */
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction
+import RequestHeaders from '../helpers/RequestHeaders.js';
+import ResponseHeaders from '../helpers/ResponseHeaders.js';
 
 /**
  * Redirect to HTTPS/2
- * @type {import('../lib/RequestHandler.js').MiddlewareFunction}
+ * @type {MiddlewareFunction}
  */
-function redirectHttpsMiddleware(req, res) {
+function redirectHttpsMiddleware({ req, res }) {
   if (req.url.protocol !== 'http:') {
     return null;
   }
@@ -39,8 +39,8 @@ function redirectHttpsMiddleware(req, res) {
   return 'end';
 }
 
-/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
-function indexMiddleware(req, res) {
+/** @type {MiddlewareFunction} */
+function indexMiddleware({ res }) {
   const writer = new ResponseWriter(res);
   console.log('indexMiddleware');
   res.status = 200;
@@ -61,8 +61,8 @@ function indexMiddleware(req, res) {
   return 'end';
 }
 
-/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
-function scriptMiddleware(req, res) {
+/** @type {MiddlewareFunction} */
+function scriptMiddleware({ res }) {
   const writer = new ResponseWriter(res);
   console.log('scriptMiddleware');
   console.log('Holding script');
@@ -91,59 +91,68 @@ function scriptMiddleware(req, res) {
   });
 }
 
-/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
-function outputMiddleware(req, res) {
-  const reqHeaders = new HeadersHandler(req.headers);
+/** @type {MiddlewareFunction} */
+function outputMiddleware({ req, res }) {
+  const reqHeaders = new RequestHeaders(req);
   console.log(req.headers.Cookie);
-  console.log('reqHeaders.cookies.test', reqHeaders.cookies.test);
-  req.headers.Cookie = `${req.headers.Cookie};test=injected`;
+  console.log('reqHeaders.cookieEntries.test', reqHeaders.cookieEntries.test);
+  req.headers.Cookie = `${req.headers.Cookie || ''};test=injected`;
   console.log('injected', req.headers.Cookie);
-  if (reqHeaders.cookies.test) {
-    reqHeaders.cookies.test.push('hello');
+  if (reqHeaders.cookieEntries.test) {
+    reqHeaders.cookieEntries.test.push('hello');
   }
   console.log('req.headers.Cookie', req.headers.Cookie);
   req.headers.Cookie = '';
   console.log('destroyed', req.headers.Cookie);
-  reqHeaders.cookies.test.push('hello');
+  reqHeaders.cookies.all('test').push('hello');
   console.log('req.headers.Cookie', req.headers.Cookie);
-  console.log('reqHeaders.cookies.test?.[0]', reqHeaders.cookies.test?.[0]);
-  console.log('reqHeaders.cookies.test?.[1]', reqHeaders.cookies.test?.[1]);
-  console.log('reqHeaders.cookies.test2?.[0]', reqHeaders.cookies.test2?.[0]);
-  console.log('reqHeaders.cookies.test4', reqHeaders.cookies.test4);
-  console.log("'test' in reqHeaders.cookies", 'test' in reqHeaders.cookies);
-  console.log("'test4' in reqHeaders.cookies", 'test4' in reqHeaders.cookies);
+  console.log('reqHeaders.cookies.get("test")', reqHeaders.cookies.get('test'));
+  console.log('reqHeaders.cookies.all("test")', reqHeaders.cookies.all('test'));
+  console.log('reqHeaders.cookieEntries.test?.[0]', reqHeaders.cookieEntries.test?.[0]);
+  console.log('reqHeaders.cookieEntries.test?.[1]', reqHeaders.cookieEntries.test?.[1]);
+  console.log('reqHeaders.cookieEntries.test2?.[0]', reqHeaders.cookieEntries.test2?.[0]);
+  console.log('reqHeaders.cookieEntries.test4', reqHeaders.cookieEntries.test4);
+  console.log("'test' in reqHeaders.cookieEntries", 'test' in reqHeaders.cookieEntries);
+  console.log("'test4' in reqHeaders.cookieEntries", 'test4' in reqHeaders.cookieEntries);
   console.log('req.headers.Cookie', req.headers.Cookie);
 
-  const resHeaders = new HeadersHandler(res.headers);
+  const resHeaders = new ResponseHeaders(res);
   const writer = new ResponseWriter(res);
-  resHeaders.setCookies.push(new CookieObject({
+  resHeaders.cookies.set({
     name: 'test',
     value: Date.now().toString(),
-  }));
-  resHeaders.setCookies.push(new CookieObject(`test2=${Date.now()}`));
-  resHeaders.setCookies.push(new CookieObject(`test3=${Date.now()}`));
-  resHeaders.setCookies.push(new CookieObject('test=newtest;Path=/test/*'));
-  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  });
+  resHeaders.cookies.set({ name: 'test2', value: Date.now().toString() });
+  resHeaders.cookies.set(`test3=${Date.now()}`);
+  resHeaders.cookies.set('test=newtest;Path=/test/*');
+  const testCookieObject = resHeaders.cookies.get('test');
+  testCookieObject.value = 'replaced';
+  resHeaders.cookies.expire('test4');
+  console.log('all', JSON.stringify(resHeaders.cookies.findAll(), null, 2));
+  resHeaders.cookies.expireAll('test');
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   console.log('wiping');
-  resHeaders.setCookies.splice(0, resHeaders.setCookies.length);
-  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  resHeaders.cookieEntries.splice(0, resHeaders.cookieEntries.length);
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   console.log('pushing 1 ');
-  const held = new CookieObject(`held=${Date.now()}`);
-  resHeaders.setCookies.push(held);
-  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
-  console.log('unshifting 1 ');
-  resHeaders.setCookies.unshift(new CookieObject(`unshift=${Date.now()}`));
-  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  const held = resHeaders.cookies.set(`held=${Date.now()}`);
+  resHeaders.cookies.remove(held);
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   console.log('modifying held');
   held.secure = true;
-  resHeaders.setCookies.forEach((c) => console.log(c.toString()));
+  // console.log('unshifting 1 ');
+  // resHeaders.cookieEntries.unshift(new CookieObject(`unshift=${Date.now()}`));
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
+  console.log('putting back');
+  resHeaders.cookieEntries.unshift(held);
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   res.status = 200;
   resHeaders.mediaType = 'application/json';
   writer.send({ now: new Date() });
 }
 
-/** @type {import('../lib/RequestHandler.js').MiddlewareFunction} */
-function inputMiddleware(req, res) {
+/** @type {MiddlewareFunction} */
+function inputMiddleware({ req, res }) {
   console.log('inputMiddleware');
   const reader = new RequestReader(req);
   return reader.readBuffer().then((data) => {
@@ -176,17 +185,35 @@ function handleAllMiddleware() {
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
   getMiddlewareArray.push(
-    [createPathFilter('/script.js'), scriptMiddleware],
+    [createPathFilter('^/script.js'), scriptMiddleware],
   );
   // Add terminator middleware
   getMiddlewareArray.push(
     [createPathRegexFilter('/output.json$'), outputMiddleware, 'end'],
   );
 
-  // DefaultMiddlewareSet.add(redirectHttpsMiddleware);
+  // Add error handler
+  MiddlewareSets.add([
+    createMethodFilter('GET'),
+    createPathFilter('/error'),
+    function throwError() {
+      throw new Error('EXCEPTION!');
+    },
+    {
+      onError: ({ err }) => {
+        throw new Error(err);
+      },
+    },
+    { onError: () => console.log('Caught exception. Allowing continue') },
+    function responseAfterError({ res }) {
+      res.status = 200;
+      res.payload.write('Error was caught.');
+      return 'end';
+    },
+
+  ]);
 
   // Inline middleware and filter adding
-
   MiddlewareSets.add({
     myPostMiddlewares: [
       createMethodFilter('POST'),
@@ -196,13 +223,21 @@ function handleAllMiddleware() {
       () => SHOULD_CRASH,
       () => { throw new Error('Break not called!'); },
     ],
-    unknownFile(req, res) {
+    unknownFile({ req, res }) {
       console.log('Unknown', req.url.toString());
       res.status = 404;
+      return 'end';
     },
   });
 
-  console.dir(MiddlewareSets, { colors: true, depth: null });
+  DefaultMiddlewareErrorHandlers.push({
+    onError({ res, err }) {
+      console.error('Uncaught exception');
+      console.error(err);
+      res.status = 500;
+    },
+  });
+  console.dir(AllMiddleware, { colors: true, depth: null });
 }
 
 
