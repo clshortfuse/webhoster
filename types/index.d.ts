@@ -1,6 +1,4 @@
-/** @typedef {import('./types/index').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('./types/index').MiddlewareFilter} MiddlewareFilter */
-/** @typedef {import('./types/index').MiddlewareErrorHandler} MiddlewareErrorHandler */
+import { MiddlewareFunction, MiddlewareFilter,MiddlewareErrorHandler } from '../index';
 
 export type Middleware = MiddlewareFunction
   | MiddlewareFilter
