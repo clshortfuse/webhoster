@@ -1,5 +1,7 @@
 import { relative } from 'path';
 
+/** @typedef {import('../types').MiddlewareFilter} MiddlewareFilter */
+
 /**
  * @param {string[]} paths
  * @return {MiddlewareFilter}

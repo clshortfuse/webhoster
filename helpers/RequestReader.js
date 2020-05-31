@@ -1,4 +1,4 @@
-/** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
+/** @typedef {import('../types').HttpRequest} HttpRequest */
 
 import { TextDecoder } from 'util';
 

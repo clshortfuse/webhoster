@@ -1,6 +1,6 @@
-/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-
 import ResponseHeaders from './ResponseHeaders.js';
+
+/** @typedef {import('../types').HttpResponse} HttpResponse */
 
 /**
  * @typedef {Object} ResponseWriterOptions

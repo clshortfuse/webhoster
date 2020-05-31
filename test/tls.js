@@ -17,7 +17,10 @@ const contexts = new Map();
 /** @type {Map<string, TlsOptions>} */
 export const contextOptions = new Map();
 
-/** @param {TlsOptions} defaultTlsOptions */
+/**
+ * @param {TlsOptions} defaultTlsOptions
+ * @return {TlsOptions}
+ */
 export function setup(defaultTlsOptions) {
   contextOptions.set('default', defaultTlsOptions);
   return defaultTlsOptions;

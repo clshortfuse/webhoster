@@ -1,6 +1,9 @@
 import HeadersHandler from './HeadersParser.js';
 import CookieObject from '../data/CookieObject.js';
 
+/** @typedef {import('../types').HttpResponse} HttpResponse */
+/** @typedef {import('../types').CookieDetails} CookieDetails */
+
 /** @type {(keyof CookieDetails)[]} */
 const COOKIE_DETAIL_KEYS = [
   'name',

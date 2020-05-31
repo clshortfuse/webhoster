@@ -22,6 +22,8 @@ import { createCORSMiddleware } from '../middleware/cors.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
 
+/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+
 /**
  * Redirect to HTTPS/2
  * @type {MiddlewareFunction}

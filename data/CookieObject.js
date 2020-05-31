@@ -1,3 +1,5 @@
+/** @typedef {import('../types').CookieDetails} CookieDetails */
+
 /** @private */
 export default class CookieObject {
   /** @param {CookieDetails|string} options */

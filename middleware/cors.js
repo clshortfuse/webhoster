@@ -1,3 +1,6 @@
+/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
+/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
 /**
  * @typedef CORSMiddlewareOptions

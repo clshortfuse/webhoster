@@ -1,4 +1,4 @@
-import { MiddlewareFunction, MiddlewareFilter,MiddlewareErrorHandler } from '../index';
+import { MiddlewareFunction, MiddlewareFilter,MiddlewareErrorHandler } from './index.js';
 
 export type Middleware = MiddlewareFunction
   | MiddlewareFilter

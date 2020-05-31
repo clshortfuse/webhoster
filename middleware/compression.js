@@ -1,6 +1,10 @@
 import zlib from 'zlib';
 import { parseQualityValues } from '../utils/qualityValues.js';
 
+/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
+/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
+
 export const DEFAULT_MAX_BUFFER = 1024;
 
 /**

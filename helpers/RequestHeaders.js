@@ -1,5 +1,7 @@
 import HeadersHandler from './HeadersParser.js';
 
+/** @typedef {import('../types').HttpRequest} HttpRequest */
+
 /**
  * @param {string} cookieString
  * @return {[string,string][]}

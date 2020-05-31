@@ -1,3 +1,6 @@
+/** @typedef {import('../types').MiddlewareFilter} MiddlewareFilter */
+/** @typedef {import('../types').RequestMethod} RequestMethod */
+
 /**
  * @param {RequestMethod[]} methods
  * @return {MiddlewareFilter}
