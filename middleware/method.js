@@ -1,12 +1,9 @@
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFilter} MiddlewareFilter */
-/** @typedef {import('../lib/HttpRequest.js').RequestMethod} RequestMethod */
-
 /**
  * @param {RequestMethod[]} methods
  * @return {MiddlewareFilter}
  */
 export function createMethodFilter(...methods) {
-  return function methodFilter(req) {
+  return function methodFilter({ req }) {
     return methods.some((method) => method.toUpperCase() === req.method);
   };
 }
@@ -17,7 +14,7 @@ export function createMethodFilter(...methods) {
  */
 export function createMethodRegexFilter(method) {
   const pathRegex = (typeof method === 'string') ? RegExp(method, 'i') : method;
-  return function methodFilter(req) {
+  return function methodFilter({ req }) {
     return pathRegex?.test(req.method) === true;
   };
 }

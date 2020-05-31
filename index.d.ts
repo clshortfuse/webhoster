@@ -1,11 +1,9 @@
-import { MiddlewareFunction } from "./RequestHandler.js";
-import { MiddlewareFilter } from "./RequestHandler.js";
-
 type Middleware = MiddlewareFunction
   | MiddlewareFilter
+  | MiddlewareErrorHandler
   | Iterable<Middleware>
   | Map<any, Middleware>
-  | {[key:string]: Middleware}
+  | {[key:string]: Middleware, onError?: undefined}
   | boolean
   | 'end'|'break'|'continue'|null|undefined;
 

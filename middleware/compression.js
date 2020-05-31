@@ -3,11 +3,6 @@ import { parseQualityValues } from '../utils/qualityValues.js';
 
 export const DEFAULT_MAX_BUFFER = 1024;
 
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
-/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareResult} MiddlewareResult
-
 /**
  * @typedef CompressionMiddlewareOptions
  * @prop {number} [bufferSize=DEFAULT_MAX_BUFFER]
@@ -17,12 +12,11 @@ export const DEFAULT_MAX_BUFFER = 1024;
 const COMPATIBLE_ENCODINGS = ['br', 'gzip', 'deflate', 'identity', '*'];
 
 /**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
+ * @param {MiddlewareFunctionParams} params
  * @param {CompressionMiddlewareOptions} [options]
- * @return {MiddlewareResult}
+ * @return {MiddlewareFunctionResult}
  */
-function executeCompressionMiddleware(req, res, options = {}) {
+function executeCompressionMiddleware({ req, res }, options = {}) {
   const acceptString = req.headers['accept-encoding']?.toLowerCase();
   const encodings = parseQualityValues(acceptString);
   let encoding = COMPATIBLE_ENCODINGS[0];
@@ -109,12 +103,12 @@ function executeCompressionMiddleware(req, res, options = {}) {
  * @return {MiddlewareFunction}
  */
 export function createCompressionMiddleware(options = {}) {
-  return function compressionMiddleware(req, res) {
-    return executeCompressionMiddleware(req, res, options);
+  return function compressionMiddleware(params) {
+    return executeCompressionMiddleware(params, options);
   };
 }
 
-/** @type {MiddlewareFunction}  */
-export function defaultCompressionMiddleware(req, res) {
-  return executeCompressionMiddleware(req, res);
+/** @type {MiddlewareFunction} */
+export function defaultCompressionMiddleware(params) {
+  return executeCompressionMiddleware(params);
 }

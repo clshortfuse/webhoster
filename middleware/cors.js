@@ -1,7 +1,3 @@
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
-/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../lib/RequestHandler.js').MiddlewareResult} MiddlewareResult
 
 /**
  * @typedef CORSMiddlewareOptions
@@ -22,12 +18,11 @@
  */
 
 /**
- * @param {HttpRequest} req
- * @param {HttpResponse} res
+ * @param {MiddlewareFunctionParams} params
  * @param {CORSMiddlewareOptions} [options]
- * @return {MiddlewareResult}
+ * @return {MiddlewareFunctionResult}
  */
-function executeCORSMiddleware(req, res, options = {}) {
+function executeCORSMiddleware({ req, res }, options = {}) {
   if (('origin' in req.headers) === false) {
     // not CORS
     return 'continue';
@@ -86,12 +81,12 @@ function executeCORSMiddleware(req, res, options = {}) {
  * @return {MiddlewareFunction}
  */
 export function createCORSMiddleware(options = {}) {
-  return function corsMiddleware(req, res) {
-    return executeCORSMiddleware(req, res, options);
+  return function corsMiddleware(params) {
+    return executeCORSMiddleware(params, options);
   };
 }
 
 /** @type {MiddlewareFunction}  */
-export function defaultCORSMiddleware(req, res) {
-  return executeCORSMiddleware(req, res);
+export function defaultCORSMiddleware(params) {
+  return executeCORSMiddleware(params);
 }
