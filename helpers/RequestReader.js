@@ -1,7 +1,10 @@
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 
-import HeadersParser from './HeadersHandler.js';
+import { TextDecoder } from 'util';
+
 import AsyncObject from '../utils/AsyncObject.js';
+import RequestHeaders from './RequestHeaders.js';
+
 
 /**
  * @typedef {Object} RequestReaderOptions
@@ -40,7 +43,7 @@ export default class RequestReader {
   readBuffer() {
     if (this.#buffer.isBusy() || this.#buffer.hasValue()) return this.#buffer.get();
     this.#buffer.prepare();
-    const hp = new HeadersParser(this.request.headers);
+    const hp = new RequestHeaders(this.request);
     let data = Buffer.alloc(Math.min(BUFFER_SIZE, hp.contentLength || BUFFER_SIZE));
     let bytesWritten = 0;
     /** @type {NodeJS.Timeout} */
@@ -71,9 +74,7 @@ export default class RequestReader {
       clearTimeout(sendPingTimeout);
       if (this.request.canPing) {
         sendPingTimeout = setTimeout(() => {
-          this.request.ping()
-            .then(console.warn)
-            .catch(console.error);
+          this.request.ping().catch(() => {});
         }, STREAM_WAIT_MS);
       }
     });
@@ -93,8 +94,9 @@ export default class RequestReader {
   /** @return {Promise<string>} */
   readString() {
     return this.readBuffer().then((buffer) => {
-      const hp = new HeadersParser(this.request.headers);
-      return buffer.toString(hp.charset);
+      const reqHeaders = new RequestHeaders(this.request);
+      const decoder = new TextDecoder(reqHeaders.charset);
+      return decoder.decode(buffer);
     });
   }
 
@@ -114,7 +116,8 @@ export default class RequestReader {
    */
   readUrlEncoded() {
     // https://url.spec.whatwg.org/#urlencoded-parsing
-    const hp = new HeadersParser(this.request.headers);
+    const reqHeaders = new RequestHeaders(this.request);
+    const decoder = new TextDecoder(reqHeaders.charset);
     return this.readBuffer().then((buffer) => {
       const sequences = [];
       let startIndex = 0;
@@ -158,8 +161,8 @@ export default class RequestReader {
           name = bytes.subarray(0, indexOf0x3D);
           value = bytes.subarray(indexOf0x3D + 1);
         }
-        const nameString = decodeURIComponent(name.toString(hp.charset || 'utf-8'));
-        const valueString = decodeURIComponent(value.toString(hp.charset || 'utf-8'));
+        const nameString = decodeURIComponent(decoder.decode(name));
+        const valueString = decodeURIComponent(decoder.decode(value));
         output.push([nameString, valueString]);
       });
       return output;
@@ -181,8 +184,8 @@ export default class RequestReader {
    * @return {Promise<Object<string, any>|null>}
    */
   readObject() {
-    const hp = new HeadersParser(this.request.headers);
-    const contentType = hp.contentType?.toLowerCase() ?? '';
+    const reqHeaders = new RequestHeaders(this.request);
+    const contentType = reqHeaders.contentType?.toLowerCase() ?? '';
     switch (contentType) {
       case 'application/json':
         return this.readJSON();
@@ -198,8 +201,8 @@ export default class RequestReader {
    * @return {Promise<Object<string,any>|string|Buffer>}
    */
   read() {
-    const hp = new HeadersParser(this.request.headers);
-    const mediaType = hp.mediaType ?? '';
+    const reqHeaders = new RequestHeaders(this.request);
+    const mediaType = reqHeaders.mediaType ?? '';
     switch (mediaType) {
       case 'application/json':
         return this.readJSON();

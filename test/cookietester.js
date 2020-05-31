@@ -1,4 +1,4 @@
-import CookieObject from '../helpers/CookieObject.js';
+import CookieObject from '../data/CookieObject.js';
 
 [
   'id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT',

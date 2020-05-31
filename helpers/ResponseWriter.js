@@ -1,12 +1,11 @@
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
 
-import HeadersParser from './HeadersHandler.js';
+import ResponseHeaders from './ResponseHeaders.js';
 
 /**
  * @typedef {Object} ResponseWriterOptions
  * @param {boolean} [cache=true]
  */
-
 
 /** @type {WeakMap<HttpResponse, ResponseWriter>} */
 const cache = new WeakMap();
@@ -41,9 +40,9 @@ export default class ResponseWriter {
     if (this.response.payload === this.response.originalStream) {
       // If payload is a direct stream, set Content-Length and send headers
       if (!this.response.headersSent) {
-        const hp = new HeadersParser(this.response.headers);
-        if (hp.contentLength == null) {
-          hp.contentLength = buffer.byteLength;
+        const resHeaders = new ResponseHeaders(this.response);
+        if (resHeaders.contentLength == null) {
+          resHeaders.contentLength = buffer.byteLength;
         }
         this.response.sendHeaders();
       }
@@ -59,11 +58,11 @@ export default class ResponseWriter {
    * @return {void}
    */
   sendString(string) {
-    const hp = new HeadersParser(this.response.headers);
-    if (!hp.charset) {
-      hp.charset = 'utf-8';
+    const resHeaders = new ResponseHeaders(this.response);
+    if (!resHeaders.charset) {
+      resHeaders.charset = 'utf-8';
     }
-    const content = Buffer.from(string, hp.charset);
+    const content = Buffer.from(string, resHeaders.charsetAsBufferEncoding);
     this.sendBuffer(content);
   }
 
@@ -74,9 +73,9 @@ export default class ResponseWriter {
    * @return {void}
    */
   sendJson(object) {
-    const hp = new HeadersParser(this.response.headers);
-    if (!hp.mediaType) {
-      hp.mediaType = 'application/json';
+    const resHeaders = new ResponseHeaders(this.response);
+    if (!resHeaders.mediaType) {
+      resHeaders.mediaType = 'application/json';
     }
     const string = JSON.stringify(object);
     this.sendString(string);
