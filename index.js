@@ -1,3 +1,10 @@
+export { default as HttpRequest } from './lib/HttpRequest.js';
+
+export { default as HttpResponse } from './lib/HttpResponse.js';
+
+export * as RequestHandler from './lib/RequestHandler.js';
+
+
 /** @typedef {'GET'|'HEAD'|'POST'|'PUT'|'DELETE'|'CONNECT'|'OPTIONS'|'TRACE'|'PATCH'} RequestMethod */
 
 /** @typedef {boolean} MiddlewareFilterResultType */
@@ -7,19 +14,18 @@
 /** @typedef {'end'|'break'|'continue'|null|undefined|void} MiddlewareFunctionResultType */
 /** @typedef {Promise<MiddlewareFunctionResultType>|MiddlewareFunctionResultType} MiddlewareFunctionResult */
 
-/** @typedef {import('./lib/HttpRequest').default} HttpRequest */
-/** @typedef {import('./lib/HttpResponse').default} HttpResponse */
+/** @typedef {import('./types/index').Middleware} Middleware */
 
 /**
  * @typedef {Object} MiddlewareFunctionParams
- * @prop {HttpRequest} req
- * @prop {HttpResponse} res
+ * @prop {import('./lib/HttpRequest').default} req
+ * @prop {import('./lib/HttpResponse').default} res
  */
 
 /**
  * @typedef {Object} MiddlewareErrorHandlerParams
- * @prop {HttpRequest} req
- * @prop {HttpResponse} res
+ * @prop {import('./lib/HttpRequest').default} req
+ * @prop {import('./lib/HttpResponse').default} res
  * @prop {any} err
  */
 
