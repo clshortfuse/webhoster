@@ -31,10 +31,10 @@ export default class ResponseHeaders extends HeadersHandler {
   #cookieObjectProxyHandler = {
     set: (cookieTarget, cookieProp, cookieValue, receiver) => {
       Reflect.set(cookieTarget, cookieProp, cookieValue, receiver);
-      const index = this.#setCookiesProxy.indexOf(cookieTarget);
+      const index = this.cookieEntries.findIndex((entry) => entry.toString() === cookieTarget.toString());
       if (index !== -1) {
         // Force reflection
-        Reflect.set(this.#setCookiesProxy, index, cookieTarget);
+        Reflect.set(this.cookieEntries, index, cookieTarget);
       }
       return true;
     },
@@ -281,6 +281,9 @@ export default class ResponseHeaders extends HeadersHandler {
         set: (arrayTarget, arrayProp, value, receiver) => {
           Reflect.set(arrayTarget, arrayProp, value, receiver);
           if (typeof arrayProp !== 'string') return true;
+          if (arrayProp === 'length') {
+            Reflect.set(instance.headers['set-cookie'], arrayProp, value);
+          }
           if (value instanceof CookieObject) {
             instance.headers['set-cookie'][arrayProp] = value.toString();
           }
