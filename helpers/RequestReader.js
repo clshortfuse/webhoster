@@ -95,7 +95,7 @@ export default class RequestReader {
   readString() {
     return this.readBuffer().then((buffer) => {
       const reqHeaders = new RequestHeaders(this.request);
-      const decoder = new TextDecoder(reqHeaders.charset);
+      const decoder = new TextDecoder(reqHeaders.charset || 'utf-8');
       return decoder.decode(buffer);
     });
   }
@@ -117,7 +117,7 @@ export default class RequestReader {
   readUrlEncoded() {
     // https://url.spec.whatwg.org/#urlencoded-parsing
     const reqHeaders = new RequestHeaders(this.request);
-    const decoder = new TextDecoder(reqHeaders.charset);
+    const decoder = new TextDecoder(reqHeaders.charset || 'utf-8');
     return this.readBuffer().then((buffer) => {
       const sequences = [];
       let startIndex = 0;
