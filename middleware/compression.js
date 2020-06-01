@@ -1,4 +1,4 @@
-import zlib from 'zlib';
+import { createDeflate, createGzip, createBrotliCompress } from 'zlib';
 import { parseQualityValues } from '../utils/qualityValues.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
@@ -21,6 +21,9 @@ const COMPATIBLE_ENCODINGS = ['br', 'gzip', 'deflate', 'identity', '*'];
  * @return {MiddlewareFunctionResult}
  */
 function executeCompressionMiddleware({ req, res }, options = {}) {
+  if (req.method === 'HEAD') {
+    return 'continue';
+  }
   const acceptString = req.headers['accept-encoding']?.toLowerCase();
   const encodings = parseQualityValues(acceptString);
   let encoding = COMPATIBLE_ENCODINGS[0];
@@ -47,25 +50,33 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
     return 'continue';
   }
   res.headers['content-encoding'] = encoding;
+  /** @type {import("zlib").Gzip} */
   let output;
   switch (encoding) {
     case 'deflate':
-      output = zlib.createDeflate();
+      output = createDeflate();
       break;
     case 'gzip':
-      output = zlib.createGzip();
+      output = createGzip();
       break;
     case 'br':
-      output = zlib.createBrotliCompress();
+      output = createBrotliCompress();
       break;
     default:
       return Promise.reject(new Error('UNKNOWN_ENCODING'));
   }
+
+  let originalSize = 0;
   res.payload = output;
   const bufferSize = options.bufferSize ?? DEFAULT_MAX_BUFFER;
   const buffer = Buffer.alloc(DEFAULT_MAX_BUFFER);
   let outputSize = 0;
   let flushedToOriginalStream = false;
+  const baseWrite = output.write;
+  output.write = (...args) => {
+    originalSize += args[0].length;
+    return baseWrite.apply(output, args);
+  };
   output.on('data', (chunk) => {
     const newCount = outputSize + chunk.length;
     if (newCount > bufferSize) {
@@ -86,6 +97,10 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
     outputSize += chunk.length;
   });
   output.on('end', () => {
+    if (originalSize === 0) {
+      res.originalStream.end();
+      return;
+    }
     if (!res.headersSent) {
       // Set Content-Length in Header
       res.headers['Content-Length'] = outputSize;
