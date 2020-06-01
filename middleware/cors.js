@@ -1,6 +1,7 @@
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
+/** @typedef {import('../types').RequestMethod} RequestMethod */
 
 /**
  * @typedef CORSMiddlewareOptions
@@ -9,7 +10,7 @@
  * value of the `Origin` request header (which can be `null`) or `*` in a response.
  * @prop {boolean} [allowCredentials]
  * Indicates whether the response can be shared when request’s credentials mode is "include".
- * @prop {string[]} [allowMethods]
+ * @prop {RequestMethod[]} [allowMethods]
  * Indicates which methods are supported by the response’s URL for the purposes of the CORS protocol.
  * @prop {string[]} [allowHeaders]
  * Indicates which headers are supported by the response’s URL for the purposes of the CORS protocol.
@@ -59,9 +60,15 @@ function executeCORSMiddleware({ req, res }, options = {}) {
   if (req.method === 'OPTIONS') {
     if (options.allowMethods) {
       res.headers['Access-Control-Allow-Methods'] = options.allowMethods.join(',');
+    } else {
+      res.headers['Access-Control-Allow-Methods'] = [
+        'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'TRACE', 'PATCH',
+      ].join(',');
     }
     if (options.allowHeaders) {
-      res.headers['Access-Control-Allow-Methods'] = options.allowMethods.join(',');
+      res.headers['Access-Control-Allow-Headers'] = options.allowHeaders.join(',');
+    } else {
+      res.headers['Access-Control-Allow-Headers'] = req.headers['Access-Control-Request-Headers'];
     }
     if (options.maxAge) {
       res.headers['Access-Control-Max-Age'] = options.maxAge.toString(10);
@@ -69,12 +76,13 @@ function executeCORSMiddleware({ req, res }, options = {}) {
     // 200 instead of 204 for compatibility
     res.status = 200;
     res.headers['Content-Length'] = 2;
+    res.sendHeaders();
     res.payload.write('OK', 'ascii');
     return 'end';
   }
 
   if (options.exposeHeaders) {
-    res.headers['Access-Control-Expose-Headers'] = options;
+    res.headers['Access-Control-Expose-Headers'] = options.exposeHeaders.join(',');
   }
   return 'continue';
 }

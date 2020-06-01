@@ -64,6 +64,34 @@ function indexMiddleware({ res }) {
 }
 
 /** @type {MiddlewareFunction} */
+function corsTest({ res }) {
+  const writer = new ResponseWriter(res);
+  console.log('cors');
+  res.status = 200;
+  res.headers['content-type'] = 'text/html';
+  writer.sendString(/* html */ `
+    <html>
+      <head>
+        <script type="text/javascript">
+          fetch('http://127.0.0.1:8080/input.json', {
+            headers: [
+              ['Content-Type', 'application/json'],
+            ],
+            method: 'POST', body: JSON.stringify({test: 'content'}),
+            })
+            .then(console.log('done')).catch(console.error);
+        </script>
+      </head>
+      </body>
+        <h1>CORS TEST</h1>
+        ${new Date()}
+      </body>
+    </html>
+  `);
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
 function scriptMiddleware({ res }) {
   const writer = new ResponseWriter(res);
   console.log('scriptMiddleware');
@@ -225,6 +253,12 @@ function handleAllMiddleware() {
       () => SHOULD_CRASH,
       () => { throw new Error('Break not called!'); },
     ],
+    corsTest: [
+      createMethodFilter('GET'),
+      createPathFilter('/cors.html'),
+      corsTest,
+      'end',
+    ],
     unknownFile({ req, res }) {
       console.log('Unknown', req.url.toString());
       res.status = 404;
@@ -264,7 +298,10 @@ function setupHttp2() {
   }).then((server) => {
     console.log('HTTPS listening...', server.address());
     server.addListener('stream', handleHttp2Stream);
-    // server.addListener('request', handleHttpsRequest);
+    server.addListener('request', (req, res) => {
+      if (req.httpVersionMajor >= 2) return;
+      handleHttpRequest(req, res);
+    });
   });
 }
 
