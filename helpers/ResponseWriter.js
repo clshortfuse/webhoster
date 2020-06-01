@@ -30,8 +30,40 @@ export default class ResponseWriter {
   }
 
   /**
+   * Sends headers if not sent,
+   * and calls payload.write()
+   * @param {Buffer} buffer
+   * @return {void}
+   */
+  writeBuffer(buffer) {
+    if (this.response.payload === this.response.originalStream) {
+      // If payload is a direct stream, send headers
+      if (!this.response.headersSent) {
+        this.response.sendHeaders();
+      }
+    }
+
+    this.response.payload.write(buffer);
+  }
+
+  /**
+   * Sets `charset` to `utf-8` if blank,
+   * and passes `Buffer.from` result to `.writeBuffer()`
+   * @param {string} string
+   * @return {void}
+   */
+  writeString(string) {
+    const resHeaders = new ResponseHeaders(this.response);
+    if (!this.response.headersSent && !resHeaders.charset) {
+      resHeaders.charset = 'utf-8';
+    }
+    const content = Buffer.from(string, resHeaders.charsetAsBufferEncoding || 'utf-8');
+    this.writeBuffer(content);
+  }
+
+  /**
    * Sets contentLength if blank,
-   * sendsHeaders if not sent,
+   * sends headers if not sent,
    * and calls payload.write()
    * @param {Buffer} buffer
    * @return {void}
@@ -59,10 +91,10 @@ export default class ResponseWriter {
    */
   sendString(string) {
     const resHeaders = new ResponseHeaders(this.response);
-    if (!resHeaders.charset) {
+    if (!this.response.headersSent && !resHeaders.charset) {
       resHeaders.charset = 'utf-8';
     }
-    const content = Buffer.from(string, resHeaders.charsetAsBufferEncoding);
+    const content = Buffer.from(string, resHeaders.charsetAsBufferEncoding || 'utf-8');
     this.sendBuffer(content);
   }
 
