@@ -150,7 +150,7 @@ export default class ResponseHeaders extends HeadersHandler {
        * @return {CookieObject[]}
        */
       getAll(partial) {
-        const details = typeof partial === 'string' ? new CookieObject(partial) : partial ?? {};
+        const details = typeof partial === 'string' ? new CookieObject({ name: partial }) : partial ?? {};
         /** @type {CookieDetails} */
         const searchDetails = { name: details.name };
         if (details.path) {
@@ -171,18 +171,31 @@ export default class ResponseHeaders extends HeadersHandler {
        */
       findAll(details = {}) {
         return instance.cookieEntries
-          .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => ((key in details === false)
-              || (key === 'expires' && details.expires?.getTime() === cookieObject.expires?.getTime())
-              || (details[key] === cookieObject[key]))))
+          .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => {
+            if ((key in details) === false) {
+              return true;
+            }
+            switch (key) {
+              case 'expires':
+                return details.expires?.getTime() === cookieObject.expires?.getTime();
+              case 'path':
+                return (details.path ?? '') === (cookieObject.path ?? '');
+              default:
+                return details[key] === cookieObject[key];
+            }
+          }))
           .sort((a, b) => (b?.path?.length ?? 0 - a?.path?.length ?? 0));
       },
       /**
-       * @param {string|CookieDetails} partial
+       * @param {string|CookieDetails} cookie
        * @return {CookieObject}
        */
-      set(partial) {
-        const details = typeof partial === 'string' ? new CookieObject(partial) : partial ?? {};
-        let cookieObject = this.get(details);
+      set(cookie) {
+        const details = typeof cookie === 'string' ? new CookieObject(cookie) : cookie ?? {};
+        let cookieObject = this.find({
+          path: '',
+          ...details,
+        });
         if (!cookieObject) {
           cookieObject = new Proxy(new CookieObject(details), instance.#cookieObjectProxyHandler);
           instance.cookieEntries.push(cookieObject);
@@ -207,11 +220,11 @@ export default class ResponseHeaders extends HeadersHandler {
         return count;
       },
       /**
-       * @param {string|CookieDetails} partial
+       * @param {string|CookieDetails} partial name or details
        * @return {CookieObject}
        */
       expire(partial) {
-        const details = typeof partial === 'string' ? new CookieObject(partial) : partial ?? {};
+        const details = typeof partial === 'string' ? new CookieObject({ name: partial }) : partial ?? {};
         let object = this.get(details);
         if (!object) {
           object = new Proxy(new CookieObject(details), instance.#cookieObjectProxyHandler);

@@ -176,6 +176,11 @@ function outputMiddleware({ req, res }) {
   console.log('putting back');
   resHeaders.cookieEntries.unshift(held);
   resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
+  resHeaders.cookies.set('novalue=');
+  resHeaders.cookies.set('noname');
+  resHeaders.cookies.set('=blankname;path=/');
+  resHeaders.cookies.set('quotedblank=""');
+  resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   res.status = 200;
   resHeaders.mediaType = 'application/json';
   writer.send({ now: new Date() });

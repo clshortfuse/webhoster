@@ -7,6 +7,8 @@ import CookieObject from '../data/CookieObject.js';
   'sessionId=e8bb43229de9; Domain=foo.example.com',
   '__Secure-ID=123; Secure; Domain=example.com',
   '__Host-ID=123; Secure; Path=/',
+  'test="abc1234";',
+  'random',
 ].forEach((cookie) => {
   const handler = new CookieObject(cookie);
   const rebuilt = new CookieObject(handler.toJSON());

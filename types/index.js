@@ -92,7 +92,7 @@
  *
  * For example, through the Document.cookie property, the XMLHttpRequest API, or the Request API.
  * This mitigates attacks against cross-site scripting (XSS).
- * @prop {'strict'|'lax'|'none'} [sameSite]
+ * @prop {'Strict'|'Lax'|'None'} [sameSite]
  * Asserts that a cookie must not be sent with cross-origin requests,
  * providing some protection against cross-site request forgery attacks (CSRF).
  *   * Strict: The browser sends the cookie only for same-site requests

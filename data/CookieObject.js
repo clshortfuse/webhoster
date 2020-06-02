@@ -25,8 +25,22 @@ export default class CookieObject {
   static parse(cookieString) {
     /** @type {Partial<CookieDetails>} */
     const options = {};
-    cookieString.split(';').forEach((attribute, index) => {
-      const [key, value] = attribute.split('=').map((s) => s?.trim());
+    cookieString.split(';').forEach((pair, index) => {
+      const indexOfEquals = pair.indexOf('=');
+      let key;
+      let value;
+      if (indexOfEquals === -1) {
+        key = '';
+        value = pair.trim();
+      } else {
+        key = pair.substr(0, indexOfEquals).trim();
+        value = pair.substr(indexOfEquals + 1).trim();
+      }
+      const firstQuote = value.indexOf('"');
+      const lastQuote = value.lastIndexOf('"');
+      if (firstQuote !== -1 && lastQuote !== -1) {
+        value = value.substring(firstQuote + 1, lastQuote);
+      }
       if (index === 0) {
         options.name = key;
         if (value != null) {
@@ -66,14 +80,14 @@ export default class CookieObject {
 
   toString() {
     // eslint-disable-next-line prefer-template
-    return `${this.name}=${this.value}`
-      + (this.expires != null ? `;Expires=${this.expires.toUTCString()}` : '')
-      + (this.maxAge != null ? `;Max-Age=${this.maxAge}` : '')
-      + (this.domain ? `;Domain=${this.domain}` : '')
-      + (this.path ? `;Path=${this.path}` : '')
-      + (this.secure ? ';Secure' : '')
-      + (this.httpOnly ? ';HttpOnly' : '')
-      + (this.sameSite ? `;SameSite=${this.sameSite}` : '');
+    return (`${this.name ?? ''}=${this.value ?? ''}`)
+      + (this.expires != null ? `; Expires=${this.expires.toUTCString()}` : '')
+      + (this.maxAge != null ? `; Max-Age=${this.maxAge}` : '')
+      + (this.domain != null ? `; Domain=${this.domain}` : '')
+      + (this.path != null ? `; Path=${this.path}` : '')
+      + (this.secure ? '; Secure' : '')
+      + (this.httpOnly ? '; HttpOnly' : '')
+      + (this.sameSite ? `; SameSite=${this.sameSite}` : '');
   }
 
   toJSON() {

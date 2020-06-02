@@ -7,15 +7,24 @@ import HeadersHandler from './HeadersParser.js';
  * @return {[string,string][]}
  */
 function getEntriesFromCookie(cookieString) {
-  const split = cookieString.split(';');
-  /** @type {[string,string][]} */
-  const entries = [];
-  for (let i = 0; i < split.length; i += 1) {
-    const [key, value] = split[i].split('=');
-    const trimmed = key.trim();
-    entries.push([trimmed, value]);
-  }
-  return entries;
+  return cookieString.split(';').map((pair) => {
+    const indexOfEquals = pair.indexOf('=');
+    let name;
+    let value;
+    if (indexOfEquals === -1) {
+      name = '';
+      value = pair.trim();
+    } else {
+      name = pair.substr(0, indexOfEquals).trim();
+      value = pair.substr(indexOfEquals + 1).trim();
+    }
+    const firstQuote = value.indexOf('"');
+    const lastQuote = value.lastIndexOf('"');
+    if (firstQuote !== -1 && lastQuote !== -1) {
+      value = value.substring(firstQuote + 1, lastQuote);
+    }
+    return [name, value];
+  });
 }
 
 export default class RequestHeaders extends HeadersHandler {
@@ -23,9 +32,6 @@ export default class RequestHeaders extends HeadersHandler {
   constructor(req) {
     super(req.headers);
   }
-
-  /** @type {Object<string,string[]>} */
-  #allCookiesProxy = null;
 
   /** @type {Object<string,string[]>} */
   #cookiesProxy = null;
