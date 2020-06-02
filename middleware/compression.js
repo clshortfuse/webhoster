@@ -1,3 +1,4 @@
+import { PassThrough } from 'stream';
 import { createDeflate, createGzip, createBrotliCompress } from 'zlib';
 import { parseQualityValues } from '../utils/qualityValues.js';
 
@@ -66,17 +67,19 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
       return Promise.reject(new Error('UNKNOWN_ENCODING'));
   }
 
-  let originalSize = 0;
-  res.payload = output;
   const bufferSize = options.bufferSize ?? DEFAULT_MAX_BUFFER;
   const buffer = Buffer.alloc(DEFAULT_MAX_BUFFER);
+  let originalSize = 0;
   let outputSize = 0;
-  let flushedToOriginalStream = false;
-  const baseWrite = output.write;
-  output.write = (...args) => {
-    originalSize += args[0].length;
-    return baseWrite.apply(output, args);
-  };
+  let flushedToRawStream = false;
+
+  const passthrough = new PassThrough();
+  passthrough.on('data', (data) => {
+    originalSize += data[0].length;
+  });
+  passthrough.pipe(output);
+  res.payload = passthrough;
+
   output.on('data', (chunk) => {
     const newCount = outputSize + chunk.length;
     if (newCount > bufferSize) {
@@ -85,11 +88,11 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
         if (!res.headersSent) {
           res.sendHeaders();
         }
-        res.originalStream.write(buffer.subarray(0, outputSize));
-        flushedToOriginalStream = true;
+        res.rawStream.write(buffer.subarray(0, outputSize));
+        flushedToRawStream = true;
       }
       // Send chunk
-      res.originalStream.write(chunk);
+      res.rawStream.write(chunk);
     } else {
       // Buffer chunk
       chunk.copy(buffer, outputSize);
@@ -98,7 +101,7 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   });
   output.on('end', () => {
     if (originalSize === 0) {
-      res.originalStream.end();
+      res.rawStream.end();
       return;
     }
     if (!res.headersSent) {
@@ -107,12 +110,12 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
       res.sendHeaders();
     }
 
-    if (!flushedToOriginalStream) {
-      res.originalStream.write(buffer.subarray(0, outputSize));
-      flushedToOriginalStream = true;
+    if (!flushedToRawStream) {
+      res.rawStream.write(buffer.subarray(0, outputSize));
+      flushedToRawStream = true;
     }
     // End response stream
-    res.originalStream.end();
+    res.rawStream.end();
   });
   return 'continue';
 }

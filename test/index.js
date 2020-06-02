@@ -191,7 +191,7 @@ function inputMiddleware({ req, res }) {
   console.log('inputMiddleware');
   const reader = new RequestReader(req);
   return reader.readBuffer().then((data) => {
-    console.log(data.length);
+    console.log('input.json', data.length);
     const writer = new ResponseWriter(res);
     res.status = 200;
     writer.send({ now: new Date() });

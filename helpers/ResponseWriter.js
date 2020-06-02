@@ -36,7 +36,7 @@ export default class ResponseWriter {
    * @return {void}
    */
   writeBuffer(buffer) {
-    if (this.response.payload === this.response.originalStream) {
+    if (this.response.payload === this.response.rawStream) {
       // If payload is a direct stream, send headers
       if (!this.response.headersSent) {
         this.response.sendHeaders();
@@ -69,7 +69,7 @@ export default class ResponseWriter {
    * @return {void}
    */
   sendBuffer(buffer) {
-    if (this.response.payload === this.response.originalStream) {
+    if (this.response.payload === this.response.rawStream) {
       // If payload is a direct stream, set Content-Length and send headers
       if (!this.response.headersSent) {
         const resHeaders = new ResponseHeaders(this.response);
