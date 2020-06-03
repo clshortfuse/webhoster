@@ -1,16 +1,18 @@
 import { PassThrough } from 'stream';
-import { createDeflate, createGzip, createBrotliCompress } from 'zlib';
+import {
+  createDeflate, createGzip, createBrotliCompress, constants,
+} from 'zlib';
 import { parseQualityValues } from '../utils/qualityValues.js';
+import { addEndObserver, hasEndCalled } from '../utils/WritableObserver.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
-export const DEFAULT_MAX_BUFFER = 1024;
 
 /**
  * @typedef CompressionMiddlewareOptions
- * @prop {number} [bufferSize=DEFAULT_MAX_BUFFER]
+ * @prop {number} [chunkSize]
  * @prop {boolean} [respondNotAcceptable=true]
  */
 
@@ -52,70 +54,40 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   }
   res.headers['content-encoding'] = encoding;
   /** @type {import("zlib").Gzip} */
-  let output;
+  let gzipStream;
+  /** @type {import('zlib').ZlibOptions} */
+  const gZipOptions = { flush: constants.Z_FINISH, chunkSize: options.chunkSize };
   switch (encoding) {
     case 'deflate':
-      output = createDeflate();
+      gzipStream = createDeflate(gZipOptions);
       break;
     case 'gzip':
-      output = createGzip();
+      gzipStream = createGzip(gZipOptions);
       break;
     case 'br':
-      output = createBrotliCompress();
+      gzipStream = createBrotliCompress(gZipOptions);
       break;
     default:
       return Promise.reject(new Error('UNKNOWN_ENCODING'));
   }
 
-  const bufferSize = options.bufferSize ?? DEFAULT_MAX_BUFFER;
-  const buffer = Buffer.alloc(DEFAULT_MAX_BUFFER);
-  let originalSize = 0;
-  let outputSize = 0;
-  let flushedToRawStream = false;
-
-  const passthrough = new PassThrough();
-  passthrough.on('data', (data) => {
-    originalSize += data[0].length;
+  let hasData = false;
+  const newStream = new PassThrough();
+  newStream.on('data', () => {
+    hasData = true;
   });
-  passthrough.pipe(output);
-  res.payload = passthrough;
-
-  output.on('data', (chunk) => {
-    const newCount = outputSize + chunk.length;
-    if (newCount > bufferSize) {
-      if (outputSize <= bufferSize) {
-        // Send buffer now
-        if (!res.headersSent) {
-          res.sendHeaders();
-        }
-        res.rawStream.write(buffer.subarray(0, outputSize));
-        flushedToRawStream = true;
-      }
-      // Send chunk
-      res.rawStream.write(chunk);
+  newStream.pipe(gzipStream);
+  const destination = res.replaceStream(newStream);
+  addEndObserver(newStream);
+  gzipStream.on('data', (chunk) => {
+    if (hasEndCalled(newStream) && !gzipStream._writableState.needDrain) {
+      destination.end(hasData ? chunk : null);
     } else {
-      // Buffer chunk
-      chunk.copy(buffer, outputSize);
+      destination.write(chunk);
     }
-    outputSize += chunk.length;
   });
-  output.on('end', () => {
-    if (originalSize === 0) {
-      res.rawStream.end();
-      return;
-    }
-    if (!res.headersSent) {
-      // Set Content-Length in Header
-      res.headers['Content-Length'] = outputSize;
-      res.sendHeaders();
-    }
-
-    if (!flushedToRawStream) {
-      res.rawStream.write(buffer.subarray(0, outputSize));
-      flushedToRawStream = true;
-    }
-    // End response stream
-    res.rawStream.end();
+  gzipStream.on('end', () => {
+    destination.end();
   });
   return 'continue';
 }

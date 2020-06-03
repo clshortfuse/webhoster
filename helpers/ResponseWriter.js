@@ -30,20 +30,12 @@ export default class ResponseWriter {
   }
 
   /**
-   * Sends headers if not sent,
-   * and calls payload.write()
+   * Calls stream.write()
    * @param {Buffer} buffer
    * @return {void}
    */
   writeBuffer(buffer) {
-    if (this.response.payload === this.response.rawStream) {
-      // If payload is a direct stream, send headers
-      if (!this.response.headersSent) {
-        this.response.sendHeaders();
-      }
-    }
-
-    this.response.payload.write(buffer);
+    this.response.stream.write(buffer);
   }
 
   /**
@@ -62,25 +54,12 @@ export default class ResponseWriter {
   }
 
   /**
-   * Sets contentLength if blank,
-   * sends headers if not sent,
-   * and calls payload.write()
+   * Calls stream.end()
    * @param {Buffer} buffer
    * @return {void}
    */
   sendBuffer(buffer) {
-    if (this.response.payload === this.response.rawStream) {
-      // If payload is a direct stream, set Content-Length and send headers
-      if (!this.response.headersSent) {
-        const resHeaders = new ResponseHeaders(this.response);
-        if (resHeaders.contentLength == null) {
-          resHeaders.contentLength = buffer.byteLength;
-        }
-        this.response.sendHeaders();
-      }
-    }
-
-    this.response.payload.write(buffer);
+    this.response.stream.end(buffer);
   }
 
   /**

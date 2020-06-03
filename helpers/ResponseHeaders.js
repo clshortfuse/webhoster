@@ -40,9 +40,17 @@ export default class ResponseHeaders extends HeadersHandler {
     },
   };
 
+  get contentType() {
+    return super.contentType;
+  }
+
   /** @param {string} contentType */
   set contentType(contentType) {
     this.headers['content-type'] = contentType;
+  }
+
+  get mediaType() {
+    return super.mediaType;
   }
 
   /** @param {string} mediaType */
@@ -53,6 +61,10 @@ export default class ResponseHeaders extends HeadersHandler {
       charset ? `charset=${charset}` : null,
       boundary ? `boundary=${boundary}` : null,
     ].filter((s) => s != null).join(';');
+  }
+
+  get charset() {
+    return super.charset;
   }
 
   /** @param {string} charset */
@@ -113,6 +125,10 @@ export default class ResponseHeaders extends HeadersHandler {
     }
   }
 
+  get boundary() {
+    return super.boundary;
+  }
+
   /** @param {string} boundary */
   set boundary(boundary) {
     const { mediaType, charset } = this;
@@ -121,6 +137,10 @@ export default class ResponseHeaders extends HeadersHandler {
       charset ? `charset=${charset}` : null,
       boundary ? `boundary=${boundary}` : null,
     ].filter((s) => s != null).join(';');
+  }
+
+  get contentLength() {
+    return super.contentLength;
   }
 
   /** @param {number} value */

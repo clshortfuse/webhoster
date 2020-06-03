@@ -1,10 +1,8 @@
 /** @typedef {import('../types').HttpRequest} HttpRequest */
 
 import { TextDecoder } from 'util';
-
 import AsyncObject from '../utils/AsyncObject.js';
 import RequestHeaders from './RequestHeaders.js';
-
 
 /**
  * @typedef {Object} RequestReaderOptions
@@ -48,15 +46,15 @@ export default class RequestReader {
     let bytesWritten = 0;
     /** @type {NodeJS.Timeout} */
     let sendPingTimeout = null;
-    this.request.data.on('readable', () => {
+    this.request.stream.on('readable', () => {
       let chunk;
       // eslint-disable-next-line no-cond-assign
-      while (chunk = this.request.data.read(Math.min(BUFFER_SIZE, this.request.data.readableLength))) {
+      while (chunk = this.request.stream.read(Math.min(BUFFER_SIZE, this.request.stream.readableLength))) {
         /** @type {Buffer} */
         let buffer;
         if (typeof chunk === 'string') {
-          console.warn('Unexpected string type on chunk!', this.request.data.readableEncoding);
-          buffer = Buffer.from(chunk, this.request.data.readableEncoding);
+          console.warn('Unexpected string type on chunk!', this.request.stream.readableEncoding);
+          buffer = Buffer.from(chunk, this.request.stream.readableEncoding);
         } else {
           buffer = chunk;
         }
@@ -78,14 +76,14 @@ export default class RequestReader {
         }, STREAM_WAIT_MS);
       }
     });
-    this.request.data.on('end', () => {
+    this.request.stream.on('end', () => {
       clearTimeout(sendPingTimeout);
       if (data.length > bytesWritten) {
         data = data.subarray(0, bytesWritten);
       }
       this.#buffer.set(data);
     });
-    this.request.data.on('error', (err) => {
+    this.request.stream.on('error', (err) => {
       this.#buffer.reset(err);
     });
     return this.#buffer.get();

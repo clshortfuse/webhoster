@@ -75,9 +75,7 @@ function executeCORSMiddleware({ req, res }, options = {}) {
     }
     // 200 instead of 204 for compatibility
     res.status = 200;
-    res.headers['Content-Length'] = 2;
-    res.sendHeaders();
-    res.payload.write('OK', 'ascii');
+    res.stream.end('OK');
     return 'end';
   }
 
