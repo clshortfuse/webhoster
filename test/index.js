@@ -311,18 +311,29 @@ function handleAllMiddleware() {
   );
 
   // Add error handler
+  MiddlewareSets.add([createMethodFilter('GET'),
+    createPathFilter('/error'),
+    function throwError() {
+      throw new Error('unexpected error!');
+    }]);
   MiddlewareSets.add([
     createMethodFilter('GET'),
-    createPathFilter('/error'),
+    createPathFilter('/catch'),
     function throwError() {
       throw new Error('EXCEPTION!');
     },
     {
       onError: ({ err }) => {
+        console.log('I catch and rethrow errors.');
         throw new Error(err);
       },
     },
-    { onError: () => console.log('Caught exception. Allowing continue') },
+    {
+      onError: ({ err }) => {
+        console.warn('Caught exception. Allowing continue.', err);
+        return Promise.resolve('continue');
+      },
+    },
     function responseAfterError({ res }) {
       res.status = 200;
       res.stream.write('Error was caught.');
