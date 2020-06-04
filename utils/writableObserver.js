@@ -28,6 +28,9 @@ export function removeEndObserver(writable) {
 
 
 /**
+ * Wraps a `Writable` object's `.end()` function to detect it has been called.
+ * This capture occurs before the `'end'` event is emitted as well as before
+ * `.write()` if called with chunk.
  * @param {Writable} writable
  * @return {void}
  */

@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 
-import { readFileSync } from 'fs';
 import * as httpserver from './httpserver.js';
 import * as http2server from './http2server.js';
 import * as tls from './tls.js';
@@ -16,6 +15,8 @@ import {
 } from '../lib/RequestHandler.js';
 import ResponseWriter from '../helpers/ResponseWriter.js';
 import RequestReader from '../helpers/RequestReader.js';
+import { defaultSendHeadersMiddleware } from '../middleware/sendheaders.js';
+import { createContentLengthMiddleware } from '../middleware/contentlength.js';
 import { defaultHashMiddleware } from '../middleware/hash.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
 import { createMethodFilter } from '../middleware/method.js';
@@ -40,6 +41,7 @@ function redirectHttpsMiddleware({ req, res }) {
   const Location = url.href;
   res.status = 301;
   res.headers.Location = Location;
+  res.sendHeaders();
   return 'end';
 }
 
@@ -50,8 +52,8 @@ function indexMiddleware({ res }) {
   res.status = 200;
   res.headers['content-type'] = 'text/html';
   if (res.canPushPath) {
-    // res.pushPath('/script.js').catch(console.error);
-    // res.pushPath('/fake.png').catch(console.error);
+    res.pushPath('/script.js').catch(console.error);
+    res.pushPath('/fake.png').catch(console.error);
   }
   writer.sendString(/* html */ `
     <html>
@@ -66,13 +68,14 @@ function indexMiddleware({ res }) {
 }
 
 /** @type {MiddlewareFunction} */
-function largeMiddleware({ res }) {
+function largeMiddleware({ req, res }) {
   const writer = new ResponseWriter(res);
-  console.log('indexMiddleware');
+  console.log('largeMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
   let block = '';
-  for (let i = 0; i < 10000; i += 1) {
+  const len = Number.parseInt(req.url.searchParams.get('lines'), 10) || 10000;
+  for (let i = 0; i < len; i += 1) {
     block += `<pre>${Math.random().toString(36).substr(2, 16)}</pre><br>`;
   }
   writer.sendString(/* html */ `
@@ -87,25 +90,52 @@ function largeMiddleware({ res }) {
 }
 
 /** @type {MiddlewareFunction} */
-function chunkMiddleware({ res }) {
+function chunkMiddleware({ req, res }) {
   const writer = new ResponseWriter(res);
-  console.log('indexMiddleware');
+  console.log('chunkMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
   let block = '';
   for (let i = 0; i < 1000; i += 1) {
     block += `<pre>${Math.random().toString(36).substr(2, 16)}</pre><br>`;
   }
-  writer.writeString(`
-  <html>
-      <head></head>
-      </body>
-  `);
-  writer.writeString(block);
-  writer.writeString(`
-      </body>
-    </html>
-  `);
+  const delay = Number.parseInt(req.url.searchParams.get('delay'), 10) || 0;
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      writer.writeString(`
+    <html>
+        <head></head>
+        </body>
+    `);
+    }, delay);
+    setTimeout(() => {
+      writer.writeString(block);
+    }, delay * 2);
+    setTimeout(() => {
+      writer.writeString(`
+        </body>
+      </html>
+    `);
+    }, delay * 3);
+    setTimeout(() => { resolve('end'); }, delay * 4);
+  });
+}
+
+/** @type {MiddlewareFunction} */
+function plainTextMiddleware({ res }) {
+  console.log('plainTextMiddleware');
+  res.status = 200;
+  res.headers['content-type'] = 'text/html';
+  res.headers['content-encoding'] = 'identity';
+  res.stream.end('This is always in plaintext');
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
+function blankMiddleware({ res }) {
+  console.log('blankMiddlware');
+  res.status = 200; // Will be auto corrected
+  res.headers['content-type'] = 'text/html';
   return 'end';
 }
 
@@ -252,9 +282,11 @@ function handleAllMiddleware() {
   // Conditional statement
   DefaultMiddlewareChain.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
+    sendHeaders: defaultSendHeadersMiddleware, // Send headers automatically
+    contentLength: createContentLengthMiddleware({ set204: true }), // Calculate length of anything after
     cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
-    hash: defaultHashMiddleware,
-    compression: defaultCompressionMiddleware,
+    hash: defaultHashMiddleware, // Hash anything after
+    compression: defaultCompressionMiddleware, // Compress anything after
   };
   DefaultMiddlewareChain.push(middlewareObject);
   const mapTest = new Map();
@@ -263,13 +295,15 @@ function handleAllMiddleware() {
   const getMiddlewareArray = [
     createMethodFilter('GET'),
     [createPathRegexFilter('^/(index.html?)?$'), indexMiddleware],
-    [createPathRegexFilter('^/large.html'), largeMiddleware],
-    [createPathRegexFilter('^/chunk.html'), chunkMiddleware],
+    [createPathFilter('/large.html'), largeMiddleware],
+    [createPathFilter('/chunk.html'), chunkMiddleware],
+    [createPathFilter('/blank.html'), blankMiddleware],
+    [createPathFilter('/plaintext.html'), plainTextMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
   getMiddlewareArray.push(
-    [createPathFilter('^/script.js'), scriptMiddleware],
+    [createPathFilter('/script.js'), scriptMiddleware],
   );
   // Add terminator middleware
   getMiddlewareArray.push(
@@ -340,8 +374,8 @@ function setupHttp() {
 
 function setupHttp2() {
   const tlsOptions = tls.setup({
-    key: readFileSync('./certificates/localhost-privkey.pem'),
-    cert: readFileSync('./certificates/localhost-cert.pem'),
+    // key: readFileSync('./certificates/localhost-privkey.pem'),
+    // cert: readFileSync('./certificates/localhost-cert.pem'),
   });
 
   return http2server.start({

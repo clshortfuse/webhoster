@@ -1,6 +1,6 @@
 import { PassThrough } from 'stream';
 import crypto from 'crypto';
-import { addEndObserver, hasEndCalled } from '../utils/WritableObserver.js';
+import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
@@ -8,7 +8,7 @@ import { addEndObserver, hasEndCalled } from '../utils/WritableObserver.js';
 
 /**
  * @typedef {Object} HashMiddlewareOptions
- * @prop {'md5'|'sha'|'sha256'|'sha512'} [algorithm='sha1']
+ * @prop {'md5'|'sha1'|'sha256'|'sha512'} [algorithm='md5']
  * @prop {crypto.HexBase64Latin1Encoding} [digest='base64']
  */
 
@@ -17,7 +17,7 @@ import { addEndObserver, hasEndCalled } from '../utils/WritableObserver.js';
  * @param {HashMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeHashMiddleware({ res }, options = {}) {
+function executeHashMiddleware({ req, res }, options = {}) {
   const algorithm = options.algorithm || 'md5';
   const digest = options.digest || 'base64';
 
@@ -26,11 +26,21 @@ function executeHashMiddleware({ res }, options = {}) {
   const newStream = new PassThrough();
   const destination = res.replaceStream(newStream);
   addEndObserver(newStream);
-
-  // Auto send to hasher
   newStream.pipe(hashStream);
+  /** @type {Buffer[]} */
+  const pendingChunks = [];
+  let hasData = false;
+
   newStream.on('data', (chunk) => {
-    if (hasEndCalled(newStream) && !newStream._writableState.needDrain) {
+    hasData = true;
+    if (hasEndCalled(newStream)) {
+      pendingChunks.push(chunk);
+    } else {
+      destination.write(chunk);
+    }
+  });
+  newStream.on('end', () => {
+    if (hasData) {
       if (res.status !== 206 && !res.headersSent) {
         const hash = hashStream.digest(digest);
         res.headers.ETag = hash;
@@ -41,12 +51,11 @@ function executeHashMiddleware({ res }, options = {}) {
           }
         }
       }
-      destination.end(chunk);
-    } else {
-      destination.write(chunk);
+      let chunk;
+      while (chunk = pendingChunks.shift()) {
+        destination.write(chunk);
+      }
     }
-  });
-  newStream.on('end', () => {
     destination.end();
   });
   return 'continue';
