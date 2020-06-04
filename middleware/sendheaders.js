@@ -6,6 +6,8 @@ import { PassThrough } from 'stream';
 
 /**
  * @typedef {Object} SendHeadersMiddlewareOptions
+ * @prop {boolean} [set200or204=false]
+ * Automatically set `200` or `204` status if not set
  */
 
 /**
@@ -18,12 +20,17 @@ function executeSendHeadersMiddleware({ res }, options = {}) {
   const destination = res.replaceStream(newWritable);
   newWritable.once('data', () => {
     if (!res.headersSent) {
+      if (options.set200or204 && res.status == null) {
+        res.status = 200;
+      }
       res.sendHeaders(false);
     }
   });
-
-  newWritable.on('end', () => {
+  newWritable.once('end', () => {
     if (!res.headersSent) {
+      if (options.set200or204 && res.status == null) {
+        res.status = 204;
+      }
       res.sendHeaders(false);
     }
   });
