@@ -93,6 +93,7 @@ export default class RequestReader {
   readString() {
     return this.readBuffer().then((buffer) => {
       const reqHeaders = new RequestHeaders(this.request);
+      // TODO: Compare TextDecoder, Buffer.from(), and StringDecoder performance
       const decoder = new TextDecoder(reqHeaders.charset || 'utf-8');
       return decoder.decode(buffer);
     });

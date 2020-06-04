@@ -17,7 +17,7 @@ import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
  * @param {HashMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeHashMiddleware({ req, res }, options = {}) {
+function executeHashMiddleware({ res }, options = {}) {
   const algorithm = options.algorithm || 'md5';
   const digest = options.digest || 'base64';
 
@@ -52,6 +52,7 @@ function executeHashMiddleware({ req, res }, options = {}) {
         }
       }
       let chunk;
+      // eslint-disable-next-line no-cond-assign
       while (chunk = pendingChunks.shift()) {
         destination.write(chunk);
       }

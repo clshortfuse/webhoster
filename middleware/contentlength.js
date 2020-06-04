@@ -77,6 +77,7 @@ function executeContentLengthMiddleware({ res }, options = {}) {
       }
     }
     let chunk;
+    // eslint-disable-next-line no-cond-assign
     while (chunk = pendingChunks.shift()) {
       destination.write(chunk);
     }

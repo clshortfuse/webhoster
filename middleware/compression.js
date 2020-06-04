@@ -54,7 +54,6 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   res.headers['content-encoding'] = encoding;
   /** @type {import("zlib").Gzip} */
   let gzipStream;
-  /** @type {import('zlib').ZlibOptions} */
   switch (encoding) {
     case 'deflate':
       gzipStream = createDeflate({
@@ -107,6 +106,7 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
       pendingChunks.push(chunk);
     } else {
       let previousChunk;
+      // eslint-disable-next-line no-cond-assign
       while (previousChunk = pendingChunks.shift()) {
         destination.write(previousChunk);
       }
@@ -116,6 +116,7 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   gzipStream.on('end', () => {
     if (hasData) {
       let chunk;
+      // eslint-disable-next-line no-cond-assign
       while (chunk = pendingChunks.shift()) {
         destination.write(chunk);
       }
