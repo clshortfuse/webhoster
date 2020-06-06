@@ -1,4 +1,9 @@
-import { MiddlewareFunction, MiddlewareFilter,MiddlewareErrorHandler } from './index.js';
+import {
+  MiddlewareFunction,
+  MiddlewareFilter,
+  MiddlewareErrorHandler,
+  MiddlewareContinueBoolean
+} from './index.js';
 
 export type Middleware = MiddlewareFunction
   | MiddlewareFilter
@@ -6,6 +11,6 @@ export type Middleware = MiddlewareFunction
   | Iterable<Middleware>
   | Map<any, Middleware>
   | {[key:string]: Middleware, onError?: undefined}
-  | boolean
+  | MiddlewareContinueBoolean
   | 'end'|'break'|'continue'|null|undefined;
 

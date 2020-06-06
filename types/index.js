@@ -11,6 +11,8 @@
 
 /** @typedef {'end'|'break'|'continue'|null|undefined|void} MiddlewareFunctionResultType */
 /** @typedef {Promise<MiddlewareFunctionResultType>|MiddlewareFunctionResultType} MiddlewareFunctionResult */
+/** @typedef {true|false} MiddlewareContinueBoolean */
+
 
 /**
  * @typedef {Object} MiddlewareFunctionParams
