@@ -191,7 +191,7 @@ export default class RequestReader {
       case 'application/x-www-form-urlencoded':
         return this.readUrlEncodedAsObject();
       default:
-        return null;
+        return Promise.resolve(null);
     }
   }
 
