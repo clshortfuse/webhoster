@@ -6,10 +6,13 @@ import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
+const DEFAULT_ALGORITHM = 'md5';
+const DEFAULT_DIGEST = 'base64';
+
 /**
  * @typedef {Object} HashMiddlewareOptions
- * @prop {'md5'|'sha1'|'sha256'|'sha512'} [algorithm='md5']
- * @prop {crypto.HexBase64Latin1Encoding} [digest='base64']
+ * @prop {'md5'|'sha1'|'sha256'|'sha512'} [algorithm=DEFAULT_ALGORITHM]
+ * @prop {crypto.HexBase64Latin1Encoding} [digest=DEFAULT_DIGEST]
  */
 
 /**
@@ -18,8 +21,8 @@ import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
  * @return {MiddlewareFunctionResult}
  */
 function executeHashMiddleware({ res }, options = {}) {
-  const algorithm = options.algorithm || 'md5';
-  const digest = options.digest || 'base64';
+  const algorithm = options.algorithm || DEFAULT_ALGORITHM;
+  const digest = options.digest || DEFAULT_DIGEST;
 
 
   const hashStream = crypto.createHash(algorithm);
@@ -43,7 +46,12 @@ function executeHashMiddleware({ res }, options = {}) {
     if (hasData) {
       if (res.status !== 206 && !res.headersSent) {
         const hash = hashStream.digest(digest);
-        res.headers.ETag = hash;
+
+        // https://tools.ietf.org/html/rfc7232#section-2.3
+        if (res.headers.etag == null) {
+          res.headers.ETag = `${algorithm === 'md5' ? 'W/' : ''}"${hash}"`;
+        }
+
         if (digest === 'base64') {
           res.headers.digest = `${algorithm}=${hash}`;
           if ((algorithm === 'md5')) {
