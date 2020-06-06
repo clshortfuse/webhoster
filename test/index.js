@@ -1,12 +1,13 @@
 /* eslint-disable no-console */
 
+import { readFileSync, existsSync } from 'fs';
 import * as httpserver from './httpserver.js';
 import * as http2server from './http2server.js';
 import * as tls from './tls.js';
 import { HTTPS_PORT } from './constants.js';
 
 import {
-  handleHttpRequest,
+  handleHttp1Request,
   handleHttp2Stream,
   DefaultMiddlewareChain,
   MiddlewareSets,
@@ -134,8 +135,25 @@ function plainTextMiddleware({ res }) {
 /** @type {MiddlewareFunction} */
 function blankMiddleware({ res }) {
   console.log('blankMiddlware');
-  res.status = 200; // Will be auto corrected
+  res.status = 200;
   res.headers['content-type'] = 'text/html';
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
+function noContentMiddleware({ res }) {
+  console.log('noContentMiddleware');
+  res.status = 204;
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
+function gzipMiddleware({ res }) {
+  console.log('gzipMiddlware');
+  res.status = 200;
+  res.headers['content-type'] = 'text/html';
+  res.headers['content-encoding'] = 'gzip';
+  res.stream.end('This is always compressed with gzip.');
   return 'end';
 }
 
@@ -202,15 +220,6 @@ function outputMiddleware({ req, res }) {
   const reqHeaders = new RequestHeaders(req);
   console.log(req.headers.Cookie);
   console.log('reqHeaders.cookieEntries.test', reqHeaders.cookieEntries.test);
-  req.headers.Cookie = `${req.headers.Cookie || ''};test=injected`;
-  console.log('injected', req.headers.Cookie);
-  if (reqHeaders.cookieEntries.test) {
-    reqHeaders.cookieEntries.test.push('hello');
-  }
-  console.log('req.headers.Cookie', req.headers.Cookie);
-  req.headers.Cookie = '';
-  console.log('destroyed', req.headers.Cookie);
-  reqHeaders.cookies.all('test').push('hello');
   console.log('req.headers.Cookie', req.headers.Cookie);
   console.log('reqHeaders.cookies.get("test")', reqHeaders.cookies.get('test'));
   console.log('reqHeaders.cookies.all("test")', reqHeaders.cookies.all('test'));
@@ -283,7 +292,7 @@ function handleAllMiddleware() {
   DefaultMiddlewareChain.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
     sendHeaders: defaultSendHeadersMiddleware, // Send headers automatically
-    contentLength: createContentLengthMiddleware({ set204: true }), // Calculate length of anything after
+    contentLength: createContentLengthMiddleware(), // Calculate length of anything after
     cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
     hash: defaultHashMiddleware, // Hash anything after
     compression: defaultCompressionMiddleware, // Compress anything after
@@ -298,6 +307,8 @@ function handleAllMiddleware() {
     [createPathFilter('/large.html'), largeMiddleware],
     [createPathFilter('/chunk.html'), chunkMiddleware],
     [createPathFilter('/blank.html'), blankMiddleware],
+    [createPathFilter('/nocontent.html'), noContentMiddleware],
+    [createPathFilter('/gzip.html'), gzipMiddleware],
     [createPathFilter('/plaintext.html'), plainTextMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
@@ -379,14 +390,14 @@ function handleAllMiddleware() {
 function setupHttp() {
   return httpserver.start().then((server) => {
     console.log('HTTP listening...', server.address());
-    server.addListener('request', handleHttpRequest);
+    server.addListener('request', handleHttp1Request);
   });
 }
 
 function setupHttp2() {
   const tlsOptions = tls.setup({
-    // key: readFileSync('./certificates/localhost-privkey.pem'),
-    // cert: readFileSync('./certificates/localhost-cert.pem'),
+    key: existsSync('./certificates/localhost-privkey.pem') && readFileSync('./certificates/localhost-privkey.pem'),
+    cert: existsSync('./certificates/localhost-privkey.pem') && readFileSync('./certificates/localhost-cert.pem'),
   });
 
   return http2server.start({
@@ -395,11 +406,11 @@ function setupHttp2() {
 
     ...tlsOptions,
   }).then((server) => {
-    console.log('HTTPS listening...', server.address());
+    console.log('HTTPS/2 listening...', server.address());
     server.addListener('stream', handleHttp2Stream);
     server.addListener('request', (req, res) => {
       if (req.httpVersionMajor >= 2) return;
-      handleHttpRequest(req, res);
+      handleHttp1Request(req, res);
     });
   });
 }
