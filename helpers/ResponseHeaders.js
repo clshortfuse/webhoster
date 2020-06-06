@@ -145,7 +145,7 @@ export default class ResponseHeaders extends HeadersHandler {
 
   /** @param {number} value */
   set contentLength(value) {
-    this.headers['content-length'] = value.toString();
+    this.headers['content-length'] = value;
   }
 
   get cookies() {
