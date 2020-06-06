@@ -8,32 +8,53 @@ import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
 
+/** @typedef {'br'|'gzip'|'deflate'|'identity'|'*'} COMPATIBLE_ENCODING */
+
+const DEFAULT_MINIMUM_SIZE = 256;
+
 /**
  * @typedef CompressionMiddlewareOptions
  * @prop {number} [chunkSize]
- * @prop {boolean} [respondNotAcceptable=true]
+ * @prop {boolean} [respondNotAcceptable=false]
+ * @prop {'br'|'gzip'|'deflate'|'identity'} [preferredEncoding='identity']
+ * @prop {number} [minimumSize=DEFAULT_MINIMUM_SIZE]
  */
 
+/** @type {COMPATIBLE_ENCODING[]} */
 const COMPATIBLE_ENCODINGS = ['br', 'gzip', 'deflate', 'identity', '*'];
 
+
 /**
- * @param {MiddlewareFunctionParams} params
- * @param {CompressionMiddlewareOptions} [options]
- * @return {MiddlewareFunctionResult}
+ * @param {import('../types/index.js').HttpRequest} req
+ * @throws {NotAcceptableException} Error with `NOT_ACCEPTIBLE` message
+ * @return {COMPATIBLE_ENCODING}
  */
-function executeCompressionMiddleware({ req, res }, options = {}) {
-  if (req.method === 'HEAD') {
-    return 'continue';
+function chooseEncoding(req) {
+  /**
+   * A request without an Accept-Encoding header field implies that the
+   * user agent has no preferences regarding content-codings.  Although
+   * this allows the server to use any content-coding in a response, it
+   * does not imply that the user agent will be able to correctly process
+   * all encodings.
+   */
+  if ('accept-encoding' in req.headers === false) {
+    return '*';
   }
   const acceptString = req.headers['accept-encoding']?.toLowerCase();
   const encodings = parseQualityValues(acceptString);
   if (!encodings.size) {
-    return 'continue';
+    /**
+     * An Accept-Encoding header field with a combined field-value that is
+     * empty implies that the user agent does not want any content-coding in
+     * response.
+     */
+    return 'identity';
   }
   let encoding = COMPATIBLE_ENCODINGS[0];
   const allowWildcards = (encodings.get('*')?.q !== 0);
   const encodingEntries = [...encodings.entries()];
-  encoding = encodingEntries.find(([value, spec]) => spec.q !== 0 && COMPATIBLE_ENCODINGS.includes(value))?.[0];
+  // @ts-ignore
+  encoding = (encodingEntries.find(([value, spec]) => spec.q !== 0 && COMPATIBLE_ENCODINGS.includes(value))?.[0]);
   if (allowWildcards && (encoding === '*' || !encoding)) {
     // Server preference
     // Get first compatible encoding not specified
@@ -41,50 +62,155 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   }
   if (allowWildcards && !encoding) {
     // Get highest q'd compatible encoding not q=0 or '*'
+    // @ts-ignore
     encoding = encodingEntries
+      // @ts-ignore
       .find(([value, spec]) => spec.q !== 0 && value !== '*' && COMPATIBLE_ENCODINGS.includes(value))?.[0];
   }
-  if (!encoding && options.respondNotAcceptable !== false) {
-    res.status = 406;
-    return 'end';
+  if (!encoding) {
+    throw new Error('NOT_ACCEPTABLE');
   }
-  if (!encoding || encoding === 'identity' || encoding === '*') {
+  return encoding;
+}
+
+/**
+ * Implements `Accept-Encoding`
+ * https://tools.ietf.org/html/rfc7231#section-5.3.4
+ * @param {MiddlewareFunctionParams} params
+ * @param {CompressionMiddlewareOptions} [options]
+ * @return {MiddlewareFunctionResult}
+ */
+function executeCompressionMiddleware({ req, res }, options = {}) {
+  if (req.method === 'HEAD') {
+    // Never needs compression
     return 'continue';
   }
-  res.headers['content-encoding'] = encoding;
-  /** @type {import("zlib").Gzip} */
-  let gzipStream;
-  switch (encoding) {
-    case 'deflate':
-      gzipStream = createDeflate({
-        chunkSize: options.chunkSize,
-      });
-      break;
-    case 'gzip':
-      gzipStream = createGzip({
-        chunkSize: options.chunkSize,
-      });
-      break;
-    case 'br':
-      gzipStream = createBrotliCompress({
-        chunkSize: options.chunkSize,
-      });
-      break;
-    default:
-      return Promise.reject(new Error('UNKNOWN_ENCODING'));
+
+  /** @type {COMPATIBLE_ENCODING} */
+  let parsedEncoding;
+  if (options.respondNotAcceptable) {
+    // Parse now to catch the error;
+    try {
+      parsedEncoding = chooseEncoding(req);
+    } catch (error) {
+      if (error?.message === 'NOT_ACCEPTABLE') {
+        res.status = 406;
+        return 'end';
+      }
+      // Unknown error
+      throw error;
+    }
   }
 
-  /** Some encodings include a header even with no data */
-  let hasData = false;
-  let encodingChanged = false;
+  /** @return {string} */
+  function getContentEncoding() {
+    if (!parsedEncoding) {
+      try {
+        parsedEncoding = chooseEncoding(req);
+      } catch (error) {
+        if (error?.message !== 'NOT_ACCEPTABLE') {
+          throw error;
+        }
+      }
+    }
+    if (!parsedEncoding || parsedEncoding === '*') {
+      parsedEncoding = options.preferredEncoding || 'identity';
+    }
+    res.headers['content-encoding'] = parsedEncoding;
+    return parsedEncoding;
+  }
+
   const newStream = new PassThrough();
   addEndObserver(newStream);
   const destination = res.replaceStream(newStream);
+
+  /**
+   * @param {'br'|'gzip'|'deflate'} encoding
+   * @return {import("zlib").Gzip}
+   */
+  function buildGzipStream(encoding) {
+    /** @type {import("zlib").Gzip} */
+    let gzipStream;
+    switch (encoding) {
+      case 'deflate':
+        gzipStream = createDeflate({
+          chunkSize: options.chunkSize,
+        });
+        break;
+      case 'gzip':
+        gzipStream = createGzip({
+          chunkSize: options.chunkSize,
+        });
+        break;
+      case 'br':
+        gzipStream = createBrotliCompress({
+          chunkSize: options.chunkSize,
+        });
+        break;
+      default:
+        throw new Error('UNKNOWN_ENCODING');
+    }
+
+    /** @type {Buffer[]} */
+    const pendingChunks = [];
+    gzipStream.on('data', (chunk) => {
+      if (hasEndCalled(newStream)) {
+        pendingChunks.push(chunk);
+      } else {
+        let previousChunk;
+        // eslint-disable-next-line no-cond-assign
+        while (previousChunk = pendingChunks.shift()) {
+          destination.write(previousChunk);
+        }
+        destination.write(chunk);
+      }
+    });
+    gzipStream.on('end', () => {
+      let chunk;
+      // eslint-disable-next-line no-cond-assign
+      while (chunk = pendingChunks.shift()) {
+        destination.write(chunk);
+      }
+      destination.end();
+    });
+
+
+    return gzipStream;
+  }
+
+
+  // Don't do any work until first chunk is received (if at all).
+  // This allows middleware to set `Content-Encoding` manually,
+  // prevents allocation memory for a gzip stream unnecessarily, and
+  // prevents polluting 204 responses.
+
   newStream.once('data', (chunk) => {
-    hasData = true;
-    encodingChanged = res.headers['content-encoding'] !== encoding;
-    const next = (encodingChanged ? destination : gzipStream);
-    if (encodingChanged) gzipStream.destroy();
+    // Will be handled by .pipe() or .end() call
+    newStream.off('end', destination.end);
+
+    /** @type {string} */
+    let encoding = (res.headers['content-encoding']);
+    if (encoding == null) {
+      // Only continue if unset. Blank is still considered set.
+      // This allows forced encoding (eg: use gzip regardless of size; always identity)
+      if (chunk.length > (options.minimumSize ?? DEFAULT_MINIMUM_SIZE) || !hasEndCalled(newStream)) {
+        // If we're getting data in chunks, assume larger than minimum
+        encoding = getContentEncoding().toLowerCase?.();
+      } else {
+        encoding = 'identity';
+      }
+    }
+
+    let next;
+    switch (encoding) {
+      case 'br':
+      case 'gzip':
+      case 'deflate':
+        next = buildGzipStream(encoding);
+        break;
+      default:
+        next = destination;
+    }
     if (hasEndCalled(newStream)) {
       next.end(chunk);
     } else {
@@ -92,37 +218,10 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
       newStream.pipe(next);
     }
   });
-  newStream.on('end', () => {
-    if (!hasData) {
-      gzipStream.destroy();
-      destination.end();
-    }
-  });
 
-  /** @type {Buffer[]} */
-  const pendingChunks = [];
-  gzipStream.on('data', (chunk) => {
-    if (!hasData || hasEndCalled(newStream)) {
-      pendingChunks.push(chunk);
-    } else {
-      let previousChunk;
-      // eslint-disable-next-line no-cond-assign
-      while (previousChunk = pendingChunks.shift()) {
-        destination.write(previousChunk);
-      }
-      destination.write(chunk);
-    }
-  });
-  gzipStream.on('end', () => {
-    if (hasData) {
-      let chunk;
-      // eslint-disable-next-line no-cond-assign
-      while (chunk = pendingChunks.shift()) {
-        destination.write(chunk);
-      }
-    }
-    destination.end();
-  });
+  // In case no data is passed
+  newStream.on('end', destination.end);
+
   return 'continue';
 }
 
