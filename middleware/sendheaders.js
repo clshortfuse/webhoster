@@ -26,7 +26,7 @@ function executeSendHeadersMiddleware({ res }, options = {}) {
       res.sendHeaders(false);
     }
   });
-  newWritable.once('end', () => {
+  newWritable.on('end', () => {
     if (!res.headersSent) {
       if (options.set200or204 && res.status == null) {
         res.status = 204;
