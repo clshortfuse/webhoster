@@ -184,8 +184,8 @@ export default class RequestReader {
    */
   readObject() {
     const reqHeaders = new RequestHeaders(this.request);
-    const contentType = reqHeaders.contentType?.toLowerCase() ?? '';
-    switch (contentType) {
+    const mediaType = reqHeaders.mediaType?.toLowerCase() ?? '';
+    switch (mediaType) {
       case 'application/json':
         return this.readJSON();
       case 'application/x-www-form-urlencoded':
@@ -201,7 +201,7 @@ export default class RequestReader {
    */
   read() {
     const reqHeaders = new RequestHeaders(this.request);
-    const mediaType = reqHeaders.mediaType ?? '';
+    const mediaType = reqHeaders.mediaType?.toLowerCase() ?? '';
     switch (mediaType) {
       case 'application/json':
         return this.readJSON();
