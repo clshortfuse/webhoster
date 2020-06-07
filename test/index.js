@@ -14,10 +14,8 @@ import {
   AllMiddleware,
   DefaultMiddlewareErrorHandlers,
 } from '../lib/RequestHandler.js';
-import ResponseWriter from '../helpers/ResponseWriter.js';
-import RequestReader from '../helpers/RequestReader.js';
 import { defaultSendHeadersMiddleware } from '../middleware/sendheaders.js';
-import { createContentLengthMiddleware } from '../middleware/contentlength.js';
+import { defaultContentLengthMiddleware } from '../middleware/contentlength.js';
 import { defaultHashMiddleware } from '../middleware/hash.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
 import { createMethodFilter } from '../middleware/method.js';
@@ -25,6 +23,9 @@ import { createPathFilter, createPathRegexFilter } from '../middleware/path.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
+import { createBufferEncoderMiddleware } from '../middleware/bufferencoder.js';
+import { createBufferDecoderMiddleware } from '../middleware/bufferdecoder.js';
+import { read } from '../helpers/PromisfyReadable.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -48,7 +49,6 @@ function redirectHttpsMiddleware({ req, res }) {
 
 /** @type {MiddlewareFunction} */
 function indexMiddleware({ res }) {
-  const writer = new ResponseWriter(res);
   console.log('indexMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
@@ -56,7 +56,7 @@ function indexMiddleware({ res }) {
     res.pushPath('/script.js').catch(console.error);
     res.pushPath('/fake.png').catch(console.error);
   }
-  writer.sendString(/* html */ `
+  res.stream.end(/* html */ `
     <html>
       <head><script src="script.js"></script></head>
       </body>
@@ -70,7 +70,6 @@ function indexMiddleware({ res }) {
 
 /** @type {MiddlewareFunction} */
 function largeMiddleware({ req, res }) {
-  const writer = new ResponseWriter(res);
   console.log('largeMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
@@ -79,7 +78,7 @@ function largeMiddleware({ req, res }) {
   for (let i = 0; i < len; i += 1) {
     block += `<pre>${Math.random().toString(36).substr(2, 16)}</pre><br>`;
   }
-  writer.sendString(/* html */ `
+  res.stream.end(/* html */ `
     <html>
       <head></head>
       </body>
@@ -92,7 +91,6 @@ function largeMiddleware({ req, res }) {
 
 /** @type {MiddlewareFunction} */
 function chunkMiddleware({ req, res }) {
-  const writer = new ResponseWriter(res);
   console.log('chunkMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
@@ -103,17 +101,17 @@ function chunkMiddleware({ req, res }) {
   const delay = Number.parseInt(req.url.searchParams.get('delay'), 10) || 0;
   return new Promise((resolve) => {
     setTimeout(() => {
-      writer.writeString(`
+      res.stream.write(`
     <html>
         <head></head>
         </body>
     `);
     }, delay);
     setTimeout(() => {
-      writer.writeString(block);
+      res.stream.write(block);
     }, delay * 2);
     setTimeout(() => {
-      writer.writeString(`
+      res.stream.write(`
         </body>
       </html>
     `);
@@ -159,11 +157,10 @@ function gzipMiddleware({ res }) {
 
 /** @type {MiddlewareFunction} */
 function corsTest({ res }) {
-  const writer = new ResponseWriter(res);
   console.log('cors');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
-  writer.sendString(/* html */ `
+  res.stream.end(/* html */ `
     <html>
       <head>
         <script type="text/javascript">
@@ -187,7 +184,6 @@ function corsTest({ res }) {
 
 /** @type {MiddlewareFunction} */
 function scriptMiddleware({ res }) {
-  const writer = new ResponseWriter(res);
   console.log('scriptMiddleware');
   console.log('Holding script');
   return new Promise((resolve) => {
@@ -200,7 +196,7 @@ function scriptMiddleware({ res }) {
         console.log('RIP Push');
       }
       console.log('Releasing script');
-      writer.send(/* js */ `
+      res.stream.end(/* js */ `
         console.log('hello');
         let data = '';
         for(let i = 0; i < 2000 ; i++) {
@@ -232,7 +228,6 @@ function outputMiddleware({ req, res }) {
   console.log('req.headers.Cookie', req.headers.Cookie);
 
   const resHeaders = new ResponseHeaders(res);
-  const writer = new ResponseWriter(res);
   resHeaders.cookies.set({
     name: 'test',
     value: Date.now().toString(),
@@ -267,21 +262,26 @@ function outputMiddleware({ req, res }) {
   resHeaders.cookies.set('quotedblank=""');
   resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
   res.status = 200;
-  resHeaders.mediaType = 'application/json';
-  writer.send({ now: new Date() });
+  // resHeaders.mediaType = 'application/json';
+  res.stream.end({ now: new Date() });
 }
 
 /** @type {MiddlewareFunction} */
-function inputMiddleware({ req, res }) {
+async function inputMiddleware({ req, res }) {
   console.log('inputMiddleware');
-  const reader = new RequestReader(req);
-  return reader.readBuffer().then((data) => {
-    console.log('input.json', data.length);
-    const writer = new ResponseWriter(res);
-    res.status = 200;
-    writer.send({ now: new Date() });
-    return 'end';
-  });
+  const data = await read(req.stream);
+  console.log('input.json', data);
+  res.status = 200;
+  res.stream.end({ now: new Date() });
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
+function getJSONMiddleware({ res }) {
+  console.log('getJSONMiddleware');
+  res.status = 200;
+  res.stream.end({ now: new Date() });
+  return 'end';
 }
 
 const USE_HTTPS_REDIRECT = false;
@@ -291,11 +291,20 @@ function handleAllMiddleware() {
   // Conditional statement
   DefaultMiddlewareChain.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
-    sendHeaders: defaultSendHeadersMiddleware, // Send headers automatically
-    contentLength: createContentLengthMiddleware(), // Calculate length of anything after
+    // Send headers automatically
+    sendHeaders: defaultSendHeadersMiddleware,
+    // Calculate length of anything after
+    contentLength: defaultContentLengthMiddleware,
+    // Allow Cross-Origin Resource Sharing
     cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
-    hash: defaultHashMiddleware, // Hash anything after
-    compression: defaultCompressionMiddleware, // Compress anything after
+    // Hash anything after
+    hash: defaultHashMiddleware,
+    // Compress anything after
+    compression: defaultCompressionMiddleware,
+    // Convert Objects and Strings to Buffer
+    bufferEncoding: createBufferEncoderMiddleware({ setCharset: true, setJSON: true }),
+    // Automatically reads text, JSON, and form-url-encoded from requests
+    bufferDecoder: createBufferDecoderMiddleware({ buildString: true, parseJSON: true, formURLEncodedFormat: 'object' }),
   };
   DefaultMiddlewareChain.push(middlewareObject);
   const mapTest = new Map();
@@ -310,6 +319,7 @@ function handleAllMiddleware() {
     [createPathFilter('/nocontent.html'), noContentMiddleware],
     [createPathFilter('/gzip.html'), gzipMiddleware],
     [createPathFilter('/plaintext.html'), plainTextMiddleware],
+    [createPathFilter('/get.json'), getJSONMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
