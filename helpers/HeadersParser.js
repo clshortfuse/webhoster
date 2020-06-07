@@ -29,7 +29,7 @@ export default class HeadersParser {
     // eslint-disable-next-line no-unused-expressions
     this.contentType?.split(';').some((directive) => {
       const parameters = directive.split('=');
-      if (parameters[0].trim().toLowerCase() !== 'boundary') {
+      if (parameters[0].trim().toLowerCase() !== 'charset') {
         return false;
       }
       value = parameters[1]?.trim().toLowerCase();
