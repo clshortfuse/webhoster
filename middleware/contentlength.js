@@ -70,8 +70,8 @@ function executeContentLengthMiddleware({ req, res }, options = {}) {
         if (options.overrideHeader) {
           delete res.headers['content-length'];
         }
-      } else if (options.overrideHeader === true || res.headers['Content-Length'] == null) {
-        res.headers['Content-Length'] = length;
+      } else if (options.overrideHeader === true || res.headers['content-length'] == null) {
+        res.headers['content-length'] = length;
       }
     }
 

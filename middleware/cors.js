@@ -33,45 +33,45 @@ function executeCORSMiddleware({ req, res }, options = {}) {
   }
   if (!options.allowOrigin) {
     // Unspecified default of '*'
-    res.headers['Access-Control-Allow-Origin'] = '*';
+    res.headers['access-control-allow-origin'] = '*';
   } else {
     options.allowOrigin.some((origin) => {
       if (origin === '*') {
-        res.headers['Access-Control-Allow-Origin'] = '*';
+        res.headers['access-control-allow-origin'] = '*';
         return true;
       }
       if (typeof origin === 'string') {
         if (req.headers.origin?.toLowerCase() === origin.toLowerCase()) {
-          res.headers['Access-Control-Allow-Origin'] = req.headers.origin;
+          res.headers['access-control-allow-origin'] = req.headers.origin;
           return true;
         }
         return false;
       }
       if (origin.test(req.headers.origin)) {
-        res.headers['Access-Control-Allow-Origin'] = req.headers.origin;
+        res.headers['access-control-allow-origin'] = req.headers.origin;
         return true;
       }
       return false;
     });
   }
   if (options.allowCredentials) {
-    res.headers['Access-Control-Allow-Credentials'] = 'true';
+    res.headers['access-control-allow-credentials'] = 'true';
   }
   if (req.method === 'OPTIONS') {
     if (options.allowMethods) {
-      res.headers['Access-Control-Allow-Methods'] = options.allowMethods.join(',');
+      res.headers['access-control-allow-methods'] = options.allowMethods.join(',');
     } else {
-      res.headers['Access-Control-Allow-Methods'] = [
+      res.headers['access-control-allow-methods'] = [
         'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'TRACE', 'PATCH',
       ].join(',');
     }
     if (options.allowHeaders) {
-      res.headers['Access-Control-Allow-Headers'] = options.allowHeaders.join(',');
+      res.headers['access-control-allow-headers'] = options.allowHeaders.join(',');
     } else {
-      res.headers['Access-Control-Allow-Headers'] = req.headers['Access-Control-Request-Headers'];
+      res.headers['access-control-allow-headers'] = req.headers['access-control-request-headers'];
     }
     if (options.maxAge) {
-      res.headers['Access-Control-Max-Age'] = options.maxAge.toString(10);
+      res.headers['access-control-max-age'] = options.maxAge.toString(10);
     }
     // 200 instead of 204 for compatibility
     res.status = 200;
@@ -80,7 +80,7 @@ function executeCORSMiddleware({ req, res }, options = {}) {
   }
 
   if (options.exposeHeaders) {
-    res.headers['Access-Control-Expose-Headers'] = options.exposeHeaders.join(',');
+    res.headers['access-control-expose-headers'] = options.exposeHeaders.join(',');
   }
   return 'continue';
 }
