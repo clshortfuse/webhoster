@@ -62,6 +62,8 @@ function indexMiddleware({ res }) {
       </body>
         ${new Date()}
         <img src="fake.png"/>
+        <form action="form" method="POST"><input name="field"><input type="submit" value="POST"></form>
+        <form action="form" method="GET"><input name="field"><input type="submit" value="GET"></form>
       </body>
     </html>
   `);
@@ -165,9 +167,7 @@ function corsTest({ res }) {
       <head>
         <script type="text/javascript">
           fetch('http://127.0.0.1:8080/input.json', {
-            headers: [
-              ['Content-Type', 'application/json'],
-            ],
+            headers: [['Content-Type', '']],
             method: 'POST', body: JSON.stringify({test: 'content'}),
             })
             .then(console.log('done')).catch(console.error);
@@ -199,12 +199,17 @@ function scriptMiddleware({ res }) {
       res.stream.end(/* js */ `
         console.log('hello');
         let data = '';
-        for(let i = 0; i < 2000 ; i++) {
+        for(let i = 0; i < 10000 ; i++) {
           data += Math.random().toString(36).substr(2, 16);
         }
         console.log(data);
-        fetch('http://127.0.0.1:8080/input.json', { method: 'POST', body: JSON.stringify(data) })
-          .then(console.log('done')).catch(console.error);
+        fetch('http://127.0.0.1:8080/input.json', {
+          method: 'POST',
+          body: JSON.stringify({data}),
+          headers: [['Content-Type', 'application/json']],
+        }).then((response) => {
+            console.log('response', response);
+          }).catch(console.error);
       `);
       resolve('end');
     }, 0);
@@ -269,11 +274,47 @@ function outputMiddleware({ req, res }) {
 /** @type {MiddlewareFunction} */
 async function inputMiddleware({ req, res }) {
   console.log('inputMiddleware');
-  const data = await read(req.stream);
-  console.log('input.json', data);
-  res.status = 200;
-  res.stream.end({ now: new Date() });
-  return 'end';
+
+  return new Promise((resolve) => {
+    console.log('stalled processing for 1000ms');
+    setTimeout(async () => {
+      const value = await read(req.stream);
+      console.log('got input.json', typeof value, value);
+      res.status = 200;
+      res.stream.end(value);
+      resolve('end');
+    }, 1000);
+  });
+}
+
+/** @type {MiddlewareFunction} */
+async function formGetMiddleware({ req, res }) {
+  console.log('formGetMiddleware');
+
+  return new Promise((resolve) => {
+    console.log('stalled processing for 1000ms');
+    setTimeout(async () => {
+      const values = Object.fromEntries(req.url.searchParams.entries());
+      res.status = 200;
+      res.stream.end(values);
+      resolve('end');
+    }, 1000);
+  });
+}
+
+/** @type {MiddlewareFunction} */
+async function formPostMiddleware({ req, res }) {
+  console.log('formPostMiddleware');
+
+  return new Promise((resolve) => {
+    console.log('stalled processing for 1000ms');
+    setTimeout(async () => {
+      const value = await read(req.stream);
+      res.status = 200;
+      res.stream.end(value);
+      resolve('end');
+    }, 1000);
+  });
 }
 
 /** @type {MiddlewareFunction} */
@@ -296,15 +337,25 @@ function handleAllMiddleware() {
     // Calculate length of anything after
     contentLength: defaultContentLengthMiddleware,
     // Allow Cross-Origin Resource Sharing
-    cors: createCORSMiddleware({ allowOrigin: ['http://localhost:8080'] }),
+    cors: createCORSMiddleware({
+      allowOrigin: ['http://localhost:8080'],
+    }),
     // Hash anything after
     hash: defaultHashMiddleware,
     // Compress anything after
     compression: defaultCompressionMiddleware,
     // Convert Objects and Strings to Buffer
-    bufferEncoding: createBufferEncoderMiddleware({ setCharset: true, setJSON: true }),
+    bufferEncoding: createBufferEncoderMiddleware({
+      setCharset: true,
+      setJSON: true,
+    }),
     // Automatically reads text, JSON, and form-url-encoded from requests
-    bufferDecoder: createBufferDecoderMiddleware({ buildString: true, parseJSON: true, formURLEncodedFormat: 'object' }),
+    bufferDecoder: createBufferDecoderMiddleware({
+      buildString: true,
+      defaultMediaType: 'application/json',
+      parseJSON: true,
+      formURLEncodedFormat: 'object',
+    }),
   };
   DefaultMiddlewareChain.push(middlewareObject);
   const mapTest = new Map();
@@ -320,6 +371,7 @@ function handleAllMiddleware() {
     [createPathFilter('/gzip.html'), gzipMiddleware],
     [createPathFilter('/plaintext.html'), plainTextMiddleware],
     [createPathFilter('/get.json'), getJSONMiddleware],
+    [createPathFilter('/form'), formGetMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
@@ -368,6 +420,7 @@ function handleAllMiddleware() {
     myPostMiddlewares: [
       createMethodFilter('POST'),
       [createPathFilter('/input.json'), inputMiddleware],
+      [createPathFilter('/form'), formPostMiddleware],
     ],
     inlineFilter: [
       () => SHOULD_CRASH,
