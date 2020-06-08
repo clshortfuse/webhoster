@@ -1,4 +1,4 @@
-import { Transform } from 'stream';
+import { Transform, PassThrough } from 'stream';
 
 /** @typedef {import('stream').Readable} */
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
@@ -7,6 +7,8 @@ import { Transform } from 'stream';
 
 /**
  * @typedef {Object} BufferDecoderMiddlewareOptions
+ * @prop {string} [defaultMediaType]
+ * Assumed mediatype if not specified
  * @prop {boolean} [parseJSON=false]
  * Automatically parses JSON if `application/json` mediatype
  * @prop {'entries'|'object'|'string'|'none'} [formURLEncodedFormat='none']
@@ -64,7 +66,8 @@ function readUrlEncoded(buffer, charset) {
       startIndex = i + 1;
     }
     if (i === buffer.length - 1) {
-      sequences.push(buffer.subarray(startIndex, i));
+      sequences.push(buffer.subarray(startIndex, i + 1));
+      break;
     }
   }
   /** @type {[string, string][]} */
@@ -111,9 +114,13 @@ function readUrlEncoded(buffer, charset) {
  * @return {MiddlewareFunctionResult}
  */
 function executeBufferDecoderMiddleware({ req }, options = {}) {
-  if (req.method === 'HEAD') {
-    return 'continue';
+  switch (req.method) {
+    case 'HEAD':
+    case 'GET':
+      return 'continue';
+    default:
   }
+
 
   const contentType = (req.headers['content-type']);
   /** @type {string} */
@@ -139,6 +146,9 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
     });
   }
 
+  if (!mediaType) {
+    mediaType = options.defaultMediaType;
+  }
   const isFormUrlEncoded = mediaType === 'application/x-www-form-urlencoded';
   const isJSON = mediaType === 'application/json';
   if (!charset) {
@@ -156,31 +166,16 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
   const readAll = isJSON || isFormUrlEncoded;
 
   let fullString = '';
-  let piping = false;
-
-  /** @type {import("stream").Readable} */
-  let source;
   /** @type {Buffer[]} */
   const pendingChunks = [];
   const newReadable = new Transform({
     objectMode: true,
-    readableObjectMode: true,
-    read() {
-      const chunk = source.read();
-      if (chunk !== null) {
-        this.push(chunk);
-      }
-      if (!piping) {
-        source.on('end', () => {
-          this.end();
-        });
-        piping = true;
-      }
-    },
     transform(chunk, encoding, callback) {
       if (typeof chunk === 'string') {
         if (readAll || options.buildString) {
           fullString += chunk;
+        } else {
+          this.push(chunk);
         }
       } else if (isFormUrlEncoded) {
         pendingChunks.push(chunk);
@@ -200,17 +195,33 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
           this.push(readUrlEncoded(combinedBuffer, charset));
         }
       } else if (isJSON && options.parseJSON) {
-        this.push(JSON.parse(fullString));
+        let json;
+        try {
+          json = JSON.parse(fullString);
+        } catch {
+          json = fullString;
+        }
+        this.push(json);
       } else if (fullString) {
         this.push(fullString);
       }
       callback();
     },
   });
-  source = req.replaceStream(newReadable);
+  const source = req.replaceStream(newReadable);
   if (!isFormUrlEncoded) {
-    newReadable.setEncoding(charsetAsBufferEncoding(charset));
+    // Data read from source will be decoded as a string
+    const stringDecoder = new PassThrough();
+    const encoding = charsetAsBufferEncoding(charset);
+    stringDecoder.setEncoding(encoding);
+    newReadable.setDefaultEncoding(encoding);
+    source.pipe(stringDecoder).pipe(newReadable);
+  } else {
+    source.pipe(newReadable);
   }
+  source.pause();
+  newReadable.on('pause', () => source.pause());
+  newReadable.on('resume', () => source.resume());
 
   return 'continue';
 }
