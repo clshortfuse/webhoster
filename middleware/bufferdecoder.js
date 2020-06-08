@@ -1,4 +1,4 @@
-import { PassThrough } from 'stream';
+import { Transform } from 'stream';
 
 /** @typedef {import('stream').Readable} */
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
@@ -110,7 +110,7 @@ function readUrlEncoded(buffer, charset) {
  * @param {BufferDecoderMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeBufferDecoderMiddleware({ req, res }, options = {}) {
+function executeBufferDecoderMiddleware({ req }, options = {}) {
   if (req.method === 'HEAD') {
     return 'continue';
   }
@@ -155,50 +155,62 @@ function executeBufferDecoderMiddleware({ req, res }, options = {}) {
 
   const readAll = isJSON || isFormUrlEncoded;
 
-  const newReadable = new PassThrough({
-    objectMode: true,
-  });
-  const source = req.replaceStream(newReadable);
-  const decoderStream = new PassThrough();
-  if (!isFormUrlEncoded) {
-    console.log('making decoder');
-    decoderStream.setEncoding(charsetAsBufferEncoding(charset));
-  }
-  source.pipe(decoderStream);
-
   let fullString = '';
+  let piping = false;
+
+  /** @type {import("stream").Readable} */
+  let source;
   /** @type {Buffer[]} */
   const pendingChunks = [];
-
-  decoderStream.on('data', (/** @type {Buffer|String} */ chunk) => {
-    if (typeof chunk === 'string') {
-      if (readAll || options.buildString) {
-        fullString += chunk;
+  const newReadable = new Transform({
+    objectMode: true,
+    readableObjectMode: true,
+    read() {
+      const chunk = source.read();
+      if (chunk !== null) {
+        this.push(chunk);
       }
-    } else if (isFormUrlEncoded) {
-      pendingChunks.push(chunk);
-    } else {
-      newReadable.write(chunk);
-    }
-  });
-  decoderStream.on('end', () => {
-    if (isFormUrlEncoded) {
-      const combinedBuffer = Buffer.concat(pendingChunks);
-      if (options.formURLEncodedFormat === 'object') {
-        newReadable.end(Object.fromEntries(readUrlEncoded(combinedBuffer, charset)));
-      } else if (options.formURLEncodedFormat === 'string') {
-        newReadable.end(combinedBuffer.toString(charsetAsBufferEncoding(charset)));
+      if (!piping) {
+        source.on('end', () => {
+          this.end();
+        });
+        piping = true;
+      }
+    },
+    transform(chunk, encoding, callback) {
+      if (typeof chunk === 'string') {
+        if (readAll || options.buildString) {
+          fullString += chunk;
+        }
+      } else if (isFormUrlEncoded) {
+        pendingChunks.push(chunk);
       } else {
-        newReadable.end(readUrlEncoded(combinedBuffer, charset));
+        this.push(chunk);
       }
-    } else if (isJSON && options.parseJSON) {
-      newReadable.end(JSON.parse(fullString));
-    } else if (fullString) {
-      newReadable.end(fullString);
-    } else {
-      newReadable.end();
-    }
+      callback();
+    },
+    flush(callback) {
+      if (isFormUrlEncoded) {
+        const combinedBuffer = Buffer.concat(pendingChunks);
+        if (options.formURLEncodedFormat === 'object') {
+          this.push(Object.fromEntries(readUrlEncoded(combinedBuffer, charset)));
+        } else if (options.formURLEncodedFormat === 'string') {
+          this.push(combinedBuffer.toString(charsetAsBufferEncoding(charset)));
+        } else {
+          this.push(readUrlEncoded(combinedBuffer, charset));
+        }
+      } else if (isJSON && options.parseJSON) {
+        this.push(JSON.parse(fullString));
+      } else if (fullString) {
+        this.push(fullString);
+      }
+      callback();
+    },
   });
+  source = req.replaceStream(newReadable);
+  if (!isFormUrlEncoded) {
+    newReadable.setEncoding(charsetAsBufferEncoding(charset));
+  }
 
   return 'continue';
 }
