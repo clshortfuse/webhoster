@@ -1,5 +1,4 @@
-import { PassThrough } from 'stream';
-import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
+import { Transform } from 'stream';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
@@ -51,13 +50,6 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
     return 'continue';
   }
 
-  const newWritable = new PassThrough({
-    objectMode: true,
-  });
-  addEndObserver(newWritable);
-  const destination = res.replaceStream(newWritable);
-  /** @type {Buffer[]} */
-  const pendingChunks = [];
   /** @type {string} */
   let charset = null;
   /** @type {BufferEncoding} */
@@ -109,42 +101,39 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
     hasSetJSON = true;
   }
 
-  newWritable.on('data', (any) => {
-    /** @type {Buffer} */
-    let chunk;
-    if (Buffer.isBuffer(any)) {
-      chunk = any;
-    } else if (typeof any === 'string') {
-      if (!encoding) {
-        encoding = charsetAsBufferEncoding(parseCharset());
+  const newWritable = new Transform({
+    writableObjectMode: true,
+    transform(chunk, e, callback) {
+      if (Buffer.isBuffer(chunk)) {
+        callback(null, chunk);
+        return;
       }
-      chunk = Buffer.from(any, encoding);
-    } else if (typeof any === 'object') {
-      if (!encoding) {
-        encoding = charsetAsBufferEncoding(parseCharset());
+      if (typeof chunk === 'string') {
+        if (!encoding) {
+          encoding = charsetAsBufferEncoding(parseCharset());
+        }
+        callback(null, Buffer.from(chunk, encoding));
+        return;
       }
-      chunk = Buffer.from(JSON.stringify(any), encoding);
-      if (options.setJSON && !hasSetJSON && !res.headersSent) {
-        setJSONMediaType();
+      if (typeof chunk === 'object') {
+        if (!encoding) {
+          encoding = charsetAsBufferEncoding(parseCharset());
+        }
+        if (options.setJSON && !hasSetJSON && !res.headersSent) {
+          setJSONMediaType();
+        }
+        callback(null, Buffer.from(JSON.stringify(chunk), encoding));
+        return;
       }
-    }
-
-    if (hasEndCalled(newWritable)) {
-      pendingChunks.push(chunk);
-    } else {
-      destination.write(chunk);
-    }
+      callback(null, chunk);
+    },
+    final(callback) {
+      console.log('bencodingfinal');
+      callback();
+    },
   });
-
-  newWritable.on('end', () => {
-    let chunk;
-    // eslint-disable-next-line no-cond-assign
-    while (chunk = pendingChunks.shift()) {
-      // TODO: Implement backpressure.
-      destination.write(chunk);
-    }
-    destination.end();
-  });
+  const destination = res.replaceStream(newWritable);
+  newWritable.pipe(destination);
 
   return 'continue';
 }

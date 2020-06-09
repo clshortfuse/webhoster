@@ -1,7 +1,6 @@
-import { PassThrough } from 'stream';
+import { Transform } from 'stream';
 import { createDeflate, createGzip, createBrotliCompress } from 'zlib';
 import { parseQualityValues } from '../utils/qualityValues.js';
-import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
@@ -120,8 +119,24 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
     return parsedEncoding;
   }
 
-  const newStream = new PassThrough();
-  addEndObserver(newStream);
+  let finalCalled = false;
+  let transformCount = 0;
+  let inputLength = 0;
+  const newStream = new Transform({
+    transform(chunk, encoding, callback) {
+      transformCount += 1;
+      inputLength += chunk.length;
+      // Stall to see if more chunks are in transit
+      process.nextTick(() => {
+        this.push(chunk);
+      });
+      callback();
+    },
+    final(callback) {
+      finalCalled = true;
+      callback();
+    },
+  });
   const destination = res.replaceStream(newStream);
 
   /**
@@ -153,8 +168,9 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
 
     /** @type {Buffer[]} */
     const pendingChunks = [];
+
     gzipStream.on('data', (chunk) => {
-      if (hasEndCalled(newStream)) {
+      if (finalCalled) {
         pendingChunks.push(chunk);
       } else {
         let previousChunk;
@@ -184,16 +200,17 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
   // prevents allocation memory for a gzip stream unnecessarily, and
   // prevents polluting 204 responses.
 
+  const onEnd = () => destination.end();
   newStream.once('data', (chunk) => {
     // Will be handled by .pipe() or .end() call
-    newStream.off('end', destination.end);
+    newStream.off('end', onEnd);
 
     /** @type {string} */
     let encoding = (res.headers['content-encoding']);
     if (encoding == null) {
       // Only continue if unset. Blank is still considered set.
       // This allows forced encoding (eg: use gzip regardless of size; always identity)
-      if (chunk.length > (options.minimumSize ?? DEFAULT_MINIMUM_SIZE) || !hasEndCalled(newStream)) {
+      if (inputLength > (options.minimumSize ?? DEFAULT_MINIMUM_SIZE) || transformCount > 1) {
         // If we're getting data in chunks, assume larger than minimum
         encoding = getContentEncoding().toLowerCase?.();
       } else {
@@ -211,16 +228,12 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
       default:
         next = destination;
     }
-    if (hasEndCalled(newStream)) {
-      next.end(chunk);
-    } else {
-      next.write(chunk);
-      newStream.pipe(next);
-    }
+    next.write(chunk);
+    newStream.pipe(next);
   });
 
   // In case no data is passed
-  newStream.on('end', destination.end);
+  newStream.on('end', onEnd);
 
   return 'continue';
 }

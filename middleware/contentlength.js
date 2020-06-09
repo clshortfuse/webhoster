@@ -1,5 +1,4 @@
-import { PassThrough } from 'stream';
-import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
+import { Transform } from 'stream';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 /** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
@@ -8,7 +7,7 @@ import { addEndObserver, hasEndCalled } from '../utils/writableObserver.js';
 /**
  * @typedef {Object} ContentLengthMiddlewareOptions
  * @prop {boolean} [delayCycle=true]
- * Delaying a cycle will delay writes by one event loop.
+ * Delays writing to stream by one I/O cycle.
  * If `.end()` is called on the same event loop as write, then the
  * content length can be still calculated despite receiving data in chunks.
  * Compared to no delay, chunks are held in memory for two event loops instead
@@ -27,62 +26,54 @@ function executeContentLengthMiddleware({ req, res }, options = {}) {
     return 'continue';
   }
 
-  const newWritable = new PassThrough();
-  addEndObserver(newWritable);
-  const destination = res.replaceStream(newWritable);
+  let length = 0;
   /** @type {Buffer[]} */
   const pendingChunks = [];
-  let length = 0;
-
-  /**
-   * @param {Buffer} chunk
-   * @return {void}
-   */
-  function writeChunk(chunk) {
-    if (!chunk) return;
-    destination.write(chunk);
-  }
-
-  newWritable.on('data', (chunk) => {
-    length += chunk.length;
-    if (hasEndCalled(newWritable)) {
-      pendingChunks.push(chunk);
-    } else if (options.delayCycle !== false) {
-      pendingChunks.push(chunk);
-      setImmediate(() => {
-        writeChunk(pendingChunks.shift());
-      });
-    } else {
-      writeChunk(chunk);
-    }
-  });
-
-  newWritable.on('end', () => {
-    if (!res.headersSent) {
-      /**
-       * Any response message which "MUST NOT" include a message-body
-       * (such as the 1xx, 204, and 304 responses and any response to a HEAD request)
-       * is always terminated by the first empty line after the header fields,
-       * regardless of the entity-header fields present in the message.
-       * https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.4
-       */
-      if ((res.status >= 100 && res.status < 200) || res.status === 204 || res.status === 304) {
-        if (options.overrideHeader) {
-          delete res.headers['content-length'];
-        }
-      } else if (options.overrideHeader === true || res.headers['content-length'] == null) {
-        res.headers['content-length'] = length;
+  let delayPending = false;
+  const newWritable = new Transform({
+    transform(chunk, encoding, callback) {
+      length += chunk.length;
+      if (options.delayCycle === false) {
+        callback(null, chunk);
+        return;
       }
-    }
 
-    let chunk;
-    // eslint-disable-next-line no-cond-assign
-    while (chunk = pendingChunks.shift()) {
-      // TODO: Implement backpressure.
-      destination.write(chunk);
-    }
-    destination.end();
+      pendingChunks.push(chunk);
+      if (!delayPending) {
+        delayPending = true;
+        process.nextTick(() => setImmediate(() => {
+          delayPending = false;
+          pendingChunks.splice(0, pendingChunks.length)
+            .forEach((buffer) => this.push(buffer));
+        }));
+      }
+      callback();
+    },
+    flush(callback) {
+      if (!res.headersSent) {
+        /**
+         * Any response message which "MUST NOT" include a message-body
+         * (such as the 1xx, 204, and 304 responses and any response to a HEAD request)
+         * is always terminated by the first empty line after the header fields,
+         * regardless of the entity-header fields present in the message.
+         * https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.4
+         */
+        if ((res.status >= 100 && res.status < 200) || res.status === 204 || res.status === 304) {
+          if (options.overrideHeader) {
+            delete res.headers['content-length'];
+          }
+        } else if (options.overrideHeader === true || res.headers['content-length'] == null) {
+          res.headers['content-length'] = length;
+        }
+      }
+      pendingChunks.splice(0, pendingChunks.length)
+        .forEach((buffer) => this.push(buffer));
+      callback();
+    },
   });
+
+  const destination = res.replaceStream(newWritable);
+  newWritable.pipe(destination);
 
   return 'continue';
 }

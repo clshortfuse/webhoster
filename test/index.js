@@ -78,7 +78,7 @@ function largeMiddleware({ req, res }) {
   let block = '';
   const len = Number.parseInt(req.url.searchParams.get('lines'), 10) || 10000;
   for (let i = 0; i < len; i += 1) {
-    block += `<pre>${Math.random().toString(36).substr(2, 16)}</pre><br>`;
+    block += `<pre>${i.toString(36)}</pre><br>`;
   }
   res.stream.end(/* html */ `
     <html>
@@ -102,23 +102,27 @@ function chunkMiddleware({ req, res }) {
   }
   const delay = Number.parseInt(req.url.searchParams.get('delay'), 10) || 0;
   return new Promise((resolve) => {
-    setTimeout(() => {
-      res.stream.write(`
+    const timingFn = delay ? setTimeout : process.nextTick;
+    timingFn(() => {
+      console.log('write1');
+      res.stream.write(/* html */ `
     <html>
         <head></head>
         </body>
     `);
     }, delay);
-    setTimeout(() => {
+    timingFn(() => {
+      console.log('write2');
       res.stream.write(block);
     }, delay * 2);
-    setTimeout(() => {
-      res.stream.write(`
+    timingFn(() => {
+      console.log('write3');
+      res.stream.write(/* html */ `
         </body>
       </html>
     `);
     }, delay * 3);
-    setTimeout(() => { resolve('end'); }, delay * 4);
+    timingFn(() => { resolve('end'); }, delay * 4);
   });
 }
 
@@ -170,7 +174,9 @@ function corsTest({ res }) {
             headers: [['Content-Type', '']],
             method: 'POST', body: JSON.stringify({test: 'content'}),
             })
-            .then(console.log('done')).catch(console.error);
+            .then((response) => response.json())
+            .then(console.log)
+            .catch(console.error);
         </script>
       </head>
       </body>
@@ -207,9 +213,9 @@ function scriptMiddleware({ res }) {
           method: 'POST',
           body: JSON.stringify({data}),
           headers: [['Content-Type', 'application/json']],
-        }).then((response) => {
-            console.log('response', response);
-          }).catch(console.error);
+        }).then((response) => response.json())
+          .then((response) => console.log('match', response.data === data))
+          .catch(console.error);
       `);
       resolve('end');
     }, 0);
@@ -278,12 +284,14 @@ async function inputMiddleware({ req, res }) {
   return new Promise((resolve) => {
     console.log('stalled processing for 1000ms');
     setTimeout(async () => {
+      res.status = 200;
+      // Pipe it back and read at the same time
+      req.stream.pipe(res.stream);
       const value = await read(req.stream);
       console.log('got input.json', typeof value, value);
-      res.status = 200;
-      res.stream.end(value);
+      // res.stream.end(value);
       resolve('end');
-    }, 1000);
+    }, 0);
   });
 }
 
