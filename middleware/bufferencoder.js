@@ -127,10 +127,6 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
       }
       callback(null, chunk);
     },
-    final(callback) {
-      console.log('bencodingfinal');
-      callback();
-    },
   });
   const destination = res.replaceStream(newWritable);
   newWritable.pipe(destination);
