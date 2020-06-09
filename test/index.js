@@ -18,14 +18,14 @@ import { defaultSendHeadersMiddleware } from '../middleware/sendheaders.js';
 import { defaultContentLengthMiddleware } from '../middleware/contentlength.js';
 import { defaultHashMiddleware } from '../middleware/hash.js';
 import { defaultCompressionMiddleware } from '../middleware/compression.js';
-import { createMethodFilter } from '../middleware/method.js';
-import { createPathFilter, createPathRegexFilter } from '../middleware/path.js';
+import { createMethodFilter } from '../middleware/methodFilter.js';
+import { createPathFilter, createPathRegexFilter } from '../middleware/pathFilter.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
 import { createBufferEncoderMiddleware } from '../middleware/bufferencoder.js';
 import { createBufferDecoderMiddleware } from '../middleware/bufferdecoder.js';
-import { read } from '../helpers/PromisfyReadable.js';
+import { readStreamChunk } from '../utils/stream.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -42,7 +42,7 @@ function redirectHttpsMiddleware({ req, res }) {
   url.port = HTTPS_PORT.toString(10);
   const Location = url.href;
   res.status = 301;
-  res.headers.Location = Location;
+  res.headers.location = Location;
   res.sendHeaders();
   return 'end';
 }
@@ -225,9 +225,9 @@ function scriptMiddleware({ res }) {
 /** @type {MiddlewareFunction} */
 function outputMiddleware({ req, res }) {
   const reqHeaders = new RequestHeaders(req);
-  console.log(req.headers.Cookie);
+  console.log(req.headers.cookie);
   console.log('reqHeaders.cookieEntries.test', reqHeaders.cookieEntries.test);
-  console.log('req.headers.Cookie', req.headers.Cookie);
+  console.log('req.headers.cookie', req.headers.cookie);
   console.log('reqHeaders.cookies.get("test")', reqHeaders.cookies.get('test'));
   console.log('reqHeaders.cookies.all("test")', reqHeaders.cookies.all('test'));
   console.log('reqHeaders.cookieEntries.test?.[0]', reqHeaders.cookieEntries.test?.[0]);
@@ -236,7 +236,7 @@ function outputMiddleware({ req, res }) {
   console.log('reqHeaders.cookieEntries.test4', reqHeaders.cookieEntries.test4);
   console.log("'test' in reqHeaders.cookieEntries", 'test' in reqHeaders.cookieEntries);
   console.log("'test4' in reqHeaders.cookieEntries", 'test4' in reqHeaders.cookieEntries);
-  console.log('req.headers.Cookie', req.headers.Cookie);
+  console.log('req.headers.cookie', req.headers.cookie);
 
   const resHeaders = new ResponseHeaders(res);
   resHeaders.cookies.set({
@@ -287,7 +287,7 @@ async function inputMiddleware({ req, res }) {
       res.status = 200;
       // Pipe it back and read at the same time
       req.stream.pipe(res.stream);
-      const value = await read(req.stream);
+      const value = await readStreamChunk(req.stream);
       console.log('got input.json', typeof value, value);
       // res.stream.end(value);
       resolve('end');
@@ -317,7 +317,7 @@ async function formPostMiddleware({ req, res }) {
   return new Promise((resolve) => {
     console.log('stalled processing for 1000ms');
     setTimeout(async () => {
-      const value = await read(req.stream);
+      const value = await readStreamChunk(req.stream);
       res.status = 200;
       res.stream.end(value);
       resolve('end');
