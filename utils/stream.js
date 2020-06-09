@@ -4,23 +4,20 @@
  * @param {Readable} readable
  * @return {Promise<any>}
  */
-export function read(readable) {
-  return new Promise((resolve, reject) => {
-    readable.once('data', resolve);
-    readable.once('error', reject);
-  });
+export async function readStreamChunk(readable) {
+  return new Promise((resolve, reject) => readable.once('data', resolve).once('error', reject));
 }
 
 /**
  * @param {Readable} readable
  * @return {Promise<any[]>}
  */
-export function readAll(readable) {
+export async function readAllChunks(readable) {
   return new Promise((resolve, reject) => {
     /** @type {any[]} */
     const chunks = [];
     readable.on('data', chunks.push);
     readable.on('end', () => resolve(chunks));
-    readable.once('error', reject);
+    readable.on('error', reject);
   });
 }
