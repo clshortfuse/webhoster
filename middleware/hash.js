@@ -55,7 +55,7 @@ function executeHashMiddleware({ res }, options = {}) {
         const hash = hashStream.digest(digest);
         // https://tools.ietf.org/html/rfc7232#section-2.3
         if (res.headers.etag == null) {
-          res.headers.ETag = `${algorithm === 'md5' ? 'W/' : ''}"${length.toString(16)}-${hash}"`;
+          res.headers.etag = `${algorithm === 'md5' ? 'W/' : ''}"${length.toString(16)}-${hash}"`;
         }
         if (digest === 'base64') {
           res.headers.digest = `${algorithm}=${hash}`;
