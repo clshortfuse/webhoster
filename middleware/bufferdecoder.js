@@ -168,8 +168,14 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
   let fullString = '';
   /** @type {Buffer[]} */
   const pendingChunks = [];
+  const source = req.stream;
   const newReadable = new Transform({
     objectMode: true,
+    read(...args) {
+      if (source.isPaused()) source.resume();
+      // eslint-disable-next-line no-underscore-dangle
+      Transform.prototype._read.call(this, ...args);
+    },
     transform(chunk, encoding, callback) {
       if (typeof chunk === 'string') {
         if (readAll || options.buildString) {
@@ -208,20 +214,17 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
       callback();
     },
   });
-  const source = req.replaceStream(newReadable);
+  req.replaceStream(newReadable);
   if (!isFormUrlEncoded) {
     // Data read from source will be decoded as a string
-    const stringDecoder = new PassThrough();
     const encoding = charsetAsBufferEncoding(charset);
-    stringDecoder.setEncoding(encoding);
+    const stringDecoder = new PassThrough({ encoding });
     newReadable.setDefaultEncoding(encoding);
     source.pipe(stringDecoder).pipe(newReadable);
   } else {
     source.pipe(newReadable);
   }
   source.pause();
-  newReadable.on('pause', () => source.pause());
-  newReadable.on('resume', () => source.resume());
 
   return 'continue';
 }
