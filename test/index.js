@@ -286,10 +286,9 @@ async function inputMiddleware({ req, res }) {
     setTimeout(async () => {
       res.status = 200;
       // Pipe it back and read at the same time
-      // req.stream.pipe(res.stream);
+      req.stream.pipe(res.stream);
       const { value } = await req.stream[Symbol.asyncIterator]().next();
       console.log('got input.json', typeof value, value);
-      // res.stream.end(value);
       resolve('end');
     }, 0);
   });
@@ -346,7 +345,7 @@ function handleAllMiddleware() {
     contentLength: defaultContentLengthMiddleware,
     // Allow Cross-Origin Resource Sharing
     cors: createCORSMiddleware({
-      allowOrigin: ['http://localhost:8080'],
+      allowOrigin: ['http://localhost:8080', 'https://localhost:8443'],
     }),
     // Hash anything after
     hash: defaultHashMiddleware,
