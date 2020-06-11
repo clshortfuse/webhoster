@@ -12,7 +12,7 @@ import { parseQualityValues } from '../utils/qualityValues.js';
 const DEFAULT_MINIMUM_SIZE = 256;
 
 /**
- * @typedef CompressionMiddlewareOptions
+ * @typedef ContentEncoderMiddlewareOptions
  * @prop {number} [chunkSize]
  * @prop {boolean} [respondNotAcceptable=false]
  * @prop {'br'|'gzip'|'deflate'|'identity'} [preferredEncoding='identity']
@@ -76,12 +76,12 @@ function chooseEncoding(req) {
  * Implements `Accept-Encoding`
  * https://tools.ietf.org/html/rfc7231#section-5.3.4
  * @param {MiddlewareFunctionParams} params
- * @param {CompressionMiddlewareOptions} [options]
+ * @param {ContentEncoderMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeCompressionMiddleware({ req, res }, options = {}) {
+function executeContentEncoderMiddleware({ req, res }, options = {}) {
   if (req.method === 'HEAD') {
-    // Never needs compression
+    // Never needs content-encoding
     return 'continue';
   }
 
@@ -239,16 +239,16 @@ function executeCompressionMiddleware({ req, res }, options = {}) {
 }
 
 /**
- * @param {CompressionMiddlewareOptions} options
+ * @param {ContentEncoderMiddlewareOptions} options
  * @return {MiddlewareFunction}
  */
-export function createCompressionMiddleware(options = {}) {
-  return function compressionMiddleware(params) {
-    return executeCompressionMiddleware(params, options);
+export function createContentEncoderMiddleware(options = {}) {
+  return function contentEncoderMiddleware(params) {
+    return executeContentEncoderMiddleware(params, options);
   };
 }
 
 /** @type {MiddlewareFunction} */
-export function defaultCompressionMiddleware(params) {
-  return executeCompressionMiddleware(params);
+export function defaultContentEncoderMiddleware(params) {
+  return executeContentEncoderMiddleware(params);
 }

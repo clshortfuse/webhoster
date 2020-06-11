@@ -6,7 +6,7 @@ import { Transform, PassThrough } from 'stream';
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
 /**
- * @typedef {Object} BufferDecoderMiddlewareOptions
+ * @typedef {Object} ContentReaderMiddlewareOptions
  * @prop {string} [defaultMediaType]
  * Assumed mediatype if not specified
  * @prop {boolean} [parseJSON=false]
@@ -15,6 +15,8 @@ import { Transform, PassThrough } from 'stream';
  * Automatically converts to object if `application/x-www-form-urlencoded` mediatype
  * @prop {boolean} [buildString=false]
  * Automatically builds string into one `read()` response
+ * @prop {boolean|string} [cache=false]
+ * Caches content in req.local.content or req.local[cacheName]
  */
 
 /**
@@ -110,10 +112,10 @@ function readUrlEncoded(buffer, charset) {
 
 /**
  * @param {MiddlewareFunctionParams} params
- * @param {BufferDecoderMiddlewareOptions} [options]
+ * @param {ContentReaderMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeBufferDecoderMiddleware({ req }, options = {}) {
+function executeContentReaderMiddleware({ req }, options = {}) {
   switch (req.method) {
     case 'HEAD':
     case 'GET':
@@ -191,27 +193,30 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
       callback();
     },
     flush(callback) {
+      let result = null;
       if (isFormUrlEncoded) {
         const combinedBuffer = Buffer.concat(pendingChunks);
         if (options.formURLEncodedFormat === 'object') {
-          this.push(Object.fromEntries(readUrlEncoded(combinedBuffer, charset)));
+          result = Object.fromEntries(readUrlEncoded(combinedBuffer, charset));
         } else if (options.formURLEncodedFormat === 'string') {
-          this.push(combinedBuffer.toString(charsetAsBufferEncoding(charset)));
+          result = combinedBuffer.toString(charsetAsBufferEncoding(charset));
         } else {
-          this.push(readUrlEncoded(combinedBuffer, charset));
+          result = readUrlEncoded(combinedBuffer, charset);
         }
       } else if (isJSON && options.parseJSON) {
-        let json;
         try {
-          json = JSON.parse(fullString);
+          result = JSON.parse(fullString);
         } catch {
-          json = fullString;
+          result = fullString;
         }
-        this.push(json);
       } else if (fullString) {
-        this.push(fullString);
+        result = fullString;
       }
-      callback();
+      if (options.cache && result) {
+        const cacheName = options.cache === true ? 'content' : options.cache;
+        req.locals[cacheName] = result;
+      }
+      callback(null, result);
     },
   });
   req.replaceStream(newReadable);
@@ -230,16 +235,16 @@ function executeBufferDecoderMiddleware({ req }, options = {}) {
 }
 
 /**
- * @param {BufferDecoderMiddlewareOptions} options
+ * @param {ContentReaderMiddlewareOptions} options
  * @return {MiddlewareFunction}
  */
-export function createBufferDecoderMiddleware(options = {}) {
-  return function bufferDecoderMiddleware(params) {
-    return executeBufferDecoderMiddleware(params, options);
+export function createContentReaderMiddleware(options = {}) {
+  return function contentReaderMiddleware(params) {
+    return executeContentReaderMiddleware(params, options);
   };
 }
 
 /** @type {MiddlewareFunction} */
-export function defaultBufferDecoderMiddleware(params) {
-  return executeBufferDecoderMiddleware(params);
+export function defaultContentReaderMiddleware(params) {
+  return executeContentReaderMiddleware(params);
 }

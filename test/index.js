@@ -14,17 +14,17 @@ import {
   AllMiddleware,
   DefaultMiddlewareErrorHandlers,
 } from '../lib/RequestHandler.js';
-import { defaultSendHeadersMiddleware } from '../middleware/sendheaders.js';
-import { defaultContentLengthMiddleware } from '../middleware/contentlength.js';
+import { defaultSendHeadersMiddleware } from '../middleware/sendHeaders.js';
+import { defaultContentLengthMiddleware } from '../middleware/contentLength.js';
 import { defaultHashMiddleware } from '../middleware/hash.js';
-import { defaultCompressionMiddleware } from '../middleware/compression.js';
+import { defaultContentEncoderMiddleware } from '../middleware/contentEncoder.js';
 import { createMethodFilter } from '../middleware/methodFilter.js';
 import { createPathFilter, createPathRegexFilter } from '../middleware/pathFilter.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
-import { createBufferEncoderMiddleware } from '../middleware/bufferencoder.js';
-import { createBufferDecoderMiddleware } from '../middleware/bufferdecoder.js';
+import { createContentWriterMiddleware } from '../middleware/contentWriter.js';
+import { createContentReaderMiddleware } from '../middleware/contentReader.js';
 import { readStreamChunk } from '../utils/stream.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
@@ -286,8 +286,8 @@ async function inputMiddleware({ req, res }) {
     setTimeout(async () => {
       res.status = 200;
       // Pipe it back and read at the same time
-      req.stream.pipe(res.stream);
-      const value = await readStreamChunk(req.stream);
+      // req.stream.pipe(res.stream);
+      const { value } = await req.stream[Symbol.asyncIterator]().next();
       console.log('got input.json', typeof value, value);
       // res.stream.end(value);
       resolve('end');
@@ -351,14 +351,14 @@ function handleAllMiddleware() {
     // Hash anything after
     hash: defaultHashMiddleware,
     // Compress anything after
-    compression: defaultCompressionMiddleware,
+    contentEncoder: defaultContentEncoderMiddleware,
     // Convert Objects and Strings to Buffer
-    bufferEncoding: createBufferEncoderMiddleware({
+    contentWriter: createContentWriterMiddleware({
       setCharset: true,
       setJSON: true,
     }),
     // Automatically reads text, JSON, and form-url-encoded from requests
-    bufferDecoder: createBufferDecoderMiddleware({
+    contentReader: createContentReaderMiddleware({
       buildString: true,
       defaultMediaType: 'application/json',
       parseJSON: true,
@@ -481,6 +481,7 @@ function setupHttp2() {
     server.addListener('stream', handleHttp2Stream);
     server.addListener('request', (req, res) => {
       if (req.httpVersionMajor >= 2) return;
+      // @ts-ignore
       handleHttp1Request(req, res);
     });
   });

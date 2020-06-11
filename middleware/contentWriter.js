@@ -5,14 +5,15 @@ import { Transform } from 'stream';
 /** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
 /**
- * @typedef {Object} BufferEncoderMiddlewareOptions
+ * @typedef {Object} ContentWriterMiddlewareOptions
  * @prop {string} [defaultCharset='utf-8']
  * @prop {boolean} [setCharset=false]
  * Automatically applies charset in `Content-Type`
  * @prop {boolean} [setJSON=false]
  * Automatically applies `application/json` mediatype in `Content-Type`
+ * @prop {boolean|string} [cache=false]
+ * Caches content in res.local.content or res.local[cacheName]
  */
-
 
 /**
  * @param {string} charset
@@ -42,10 +43,10 @@ function charsetAsBufferEncoding(charset) {
 
 /**
  * @param {MiddlewareFunctionParams} params
- * @param {BufferEncoderMiddlewareOptions} [options]
+ * @param {ContentWriterMiddlewareOptions} [options]
  * @return {MiddlewareFunctionResult}
  */
-function executeBufferEncoderMiddleware({ req, res }, options = {}) {
+function executeContentWriterMiddleware({ req, res }, options = {}) {
   if (req.method === 'HEAD') {
     return 'continue';
   }
@@ -108,12 +109,23 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
         callback(null, chunk);
         return;
       }
+      const cacheName = options.cache && (options.cache === true ? 'content' : options.cache);
       if (typeof chunk === 'string') {
         if (!encoding) {
           encoding = charsetAsBufferEncoding(parseCharset());
         }
+        if (cacheName) {
+          if (typeof res.locals[cacheName] === 'string') {
+            res.locals[cacheName] += chunk;
+          } else {
+            res.locals[cacheName] = chunk;
+          }
+        }
         callback(null, Buffer.from(chunk, encoding));
         return;
+      }
+      if (cacheName) {
+        res.locals[cacheName] = chunk;
       }
       if (typeof chunk === 'object') {
         if (!encoding) {
@@ -125,6 +137,7 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
         callback(null, Buffer.from(JSON.stringify(chunk), encoding));
         return;
       }
+
       callback(null, chunk);
     },
   });
@@ -135,16 +148,16 @@ function executeBufferEncoderMiddleware({ req, res }, options = {}) {
 }
 
 /**
- * @param {BufferEncoderMiddlewareOptions} options
+ * @param {ContentWriterMiddlewareOptions} options
  * @return {MiddlewareFunction}
  */
-export function createBufferEncoderMiddleware(options = {}) {
-  return function bufferEncoderMiddleware(params) {
-    return executeBufferEncoderMiddleware(params, options);
+export function createContentWriterMiddleware(options = {}) {
+  return function contentWriterMiddleware(params) {
+    return executeContentWriterMiddleware(params, options);
   };
 }
 
 /** @type {MiddlewareFunction} */
-export function defaultBufferEncoderMiddleware(params) {
-  return executeBufferEncoderMiddleware(params);
+export function defaultContentWriterMiddleware(params) {
+  return executeContentWriterMiddleware(params);
 }
