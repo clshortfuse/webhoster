@@ -25,7 +25,7 @@ import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
 import { createContentWriterMiddleware } from '../middleware/contentWriter.js';
 import { createContentReaderMiddleware } from '../middleware/contentReader.js';
-import { readStreamChunk } from '../utils/stream.js';
+import { defaultContentDecoderMiddleware } from '../middleware/contentDecoder.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -205,7 +205,7 @@ function scriptMiddleware({ res }) {
       res.stream.end(/* js */ `
         console.log('hello');
         let data = '';
-        for(let i = 0; i < 10000 ; i++) {
+        for(let i = 0; i < 10 ; i++) {
           data += Math.random().toString(36).substr(2, 16);
         }
         console.log(data);
@@ -312,16 +312,11 @@ async function formGetMiddleware({ req, res }) {
 /** @type {MiddlewareFunction} */
 async function formPostMiddleware({ req, res }) {
   console.log('formPostMiddleware');
-
-  return new Promise((resolve) => {
-    console.log('stalled processing for 1000ms');
-    setTimeout(async () => {
-      const value = await readStreamChunk(req.stream);
-      res.status = 200;
-      res.stream.end(value);
-      resolve('end');
-    }, 1000);
-  });
+  const { value } = await req.stream[Symbol.asyncIterator]().next();
+  const stringData = JSON.stringify(value);
+  res.status = 200;
+  res.stream.end(`type: ${req.headers['content-type']}\n${stringData.toString()}}`);
+  return 'end';
 }
 
 /** @type {MiddlewareFunction} */
@@ -356,6 +351,9 @@ function handleAllMiddleware() {
       setCharset: true,
       setJSON: true,
     }),
+
+    // Automatically decodes content
+    contentDecoder: defaultContentDecoderMiddleware,
     // Automatically reads text, JSON, and form-url-encoded from requests
     contentReader: createContentReaderMiddleware({
       buildString: true,
