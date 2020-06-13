@@ -12,9 +12,9 @@ By default, the framework does nothing. It parses no headers. It writes no heade
 
 ## Core
 
-* HttpRequest.js - Class that provides the bare-minimum to bridge different protocols for client requests
-* HttpResponse.js - Class that provides the bare-minimum to bridge different protocols for client responses
-* RequestHandler.js - Maintains a tree-like structure for middleware that allows for error-catching, `break`, `continue`, and `end`.
+* [HttpRequest.js](/lib/HttpRequest.js) - Class that provides the bare-minimum to bridge different protocols for client requests
+* [HttpResponse.js](/lib/HttpResponse.js) - Class that provides the bare-minimum to bridge different protocols for client responses
+* [RequestHandler.js](/lib/RequestHandler.js) - Maintains a tree-like structure for middleware that allows for error-catching, `break`, `continue`, and `end`.
 
 ## Middleware
 
@@ -51,22 +51,22 @@ Middleware chains can be added to either `DefaultMiddlewareChain` or `Middleware
 ## Included Middleware
 
 ### Response Middleware
-* sendHeaders.js - Automatically send response headers when before writing or ending a response stream
-* calculateLength.js - Sets `Content-Length` based on response stream content writes
-* hash.js - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
-* contentEncoder.js - Applies `Content-Encoding` to response based on 'Accept-Encoding` request header
-* contentWriter.js - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
+* [sendHeaders.js](/middleware/sendHeaders.js) - Automatically send response headers when before writing or ending a response stream
+* [calculateLength.js](/middleware/calculateLength.js) - Sets `Content-Length` based on response stream content writes
+* [hash.js](/middleware/hash.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
+* [contentEncoder.js](/middleware/contentEncoder.js) - Applies `Content-Encoding` to response based on 'Accept-Encoding` request header
+* [contentWriter.js](/middleware/contentWriter.js) - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
 
 ### Request Middleware
-* contentDecoder.js - Decodes `Content-Encoding` from request streams
-* contentReader.js - Adds `Object Mode` read support to request stream, include `string`, `JSON`, and `urlencoded` support. Can cache transformation into `req.local` for convenience.
+* [contentDecoder.js](/middleware/contentDecoder.js) - Decodes `Content-Encoding` from request streams
+* [contentReader.js](/middleware/contentReader.js) - Adds `Object Mode` read support to request stream, include `string`, `JSON`, and `urlencoded` support. Can cache transformation into `req.local` for convenience.
 
 ### Other Middleware
-* cors.js - Handles preflight `OPTION` requests and sets necessary response headers for other methods
+* [cors.js](/middleware/cors.js) - Handles preflight `OPTION` requests and sets necessary response headers for other methods
 
 ### Logic Middleware
-* pathFilter.js - Creates logic filter based on URL pathname
-* methodFilter.js - Creates logic filter based on request method
+* [pathFilter.js](/middleware/pathFilter.js) - Creates logic filter based on URL pathname
+* [methodFilter.js](/middleware/methodFilter.js) - Creates logic filter based on request method
 
 ## Examples:
 
@@ -147,7 +147,6 @@ async function onPostComment({req, res}) {
     res.status = 500;
     return 'end;
   }
-  
   res.status = 200;
   res.stream.end({status: 'OK'});
   return 'end';
