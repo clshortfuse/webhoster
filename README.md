@@ -46,7 +46,7 @@ export const AllMiddleware = [
 ];
 ````
 
-Middleware chains can be added to either `DefaultMiddlewareChain` or `MiddlewareSets` depending on their purpose. Generally speaking, it's encouraged to use `DefaultMiddlewareChain` for top-level middleware that will always execute. `MiddlewareSets` is recommended for isolated chains (eg: `/images/`; `/api/; `/views/`; etc.). The use of `Set` type is to avoid mistakenly inserting the same middleware chain twice.
+Middleware chains can be added to either `DefaultMiddlewareChain` or `MiddlewareSets` depending on their purpose. Generally speaking, it's encouraged to use `DefaultMiddlewareChain` for top-level middleware that will always execute. `MiddlewareSets` is recommended for isolated chains (eg: `/images/`; `/api/`; `/views/`; etc.). The use of `Set` type is to avoid mistakenly inserting the same middleware chain twice.
 
 ## Included Middleware
 
