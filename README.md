@@ -52,7 +52,7 @@ Middleware chains can be added to either `DefaultMiddlewareChain` or `Middleware
 
 ### Response Middleware
 * [sendHeaders.js](/middleware/sendHeaders.js) - Automatically send response headers when before writing or ending a response stream
-* [calculateLength.js](/middleware/calculateLength.js) - Sets `Content-Length` based on response stream content writes
+* [contentLength.js](/middleware/contentLength.js) - Sets `Content-Length` based on response stream content writes
 * [hash.js](/middleware/hash.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
 * [contentEncoder.js](/middleware/contentEncoder.js) - Applies `Content-Encoding` to response based on 'Accept-Encoding` request header
 * [contentWriter.js](/middleware/contentWriter.js) - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
@@ -101,7 +101,7 @@ DefaultMiddlewareErrorHandlers.push({
 
 ## HttpResponse
 
-* `.stream` - (`Writable`) - This is generally how you will return with payloads on your custom middleware. It's recommended to use `.end(payload)` unless you are sending things in chunks with `.write()`. `.pipe()` is also supported. With no middleware, it accepts a `Buffer` or `string`. But if are using an Object Mode middleware like `contentWriter.js`, then you can pass an `Object` that can transform the object to JSON and set the appropriate headers automatically.
+* `.stream` - (`Writable`) - This is generally how you will return payloads in your custom middleware. It's recommended to use `.end(payload)` unless you are sending things in chunks with `.write()`. `.pipe()` is also supported. With no middleware, it accepts a `Buffer` or `string`. But if are using an Object Mode middleware like `contentWriter.js`, then you can pass an `Object` that can transform the object to JSON and set the appropriate headers automatically.
 * `.headers` - (`OutgoingHttpHeaders`) - The response headers exactly as presented to the NodeJS Server with no modifications.
 * `.status` - (`number`) - The response status
 * `.locals` - (`Object<string,any>`) - Object that gets passed in every step of the middleware chain. Application-level variables *should* be presented here.
