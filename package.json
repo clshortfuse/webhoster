@@ -1,7 +1,12 @@
 {
   "name": "webhoster",
-  "version": "0.0.1",
-  "description": "",
+  "keywords": ["http", "http2", "push", "host", "listener", "stream", "middleware", "cors", "gzip"],
+  "version": "0.0.2",
+  "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
+  "author": "clshortfuse@gmail.com",
+  "homepage": "https://github.com/clshortfuse/webhoster",
+  "repository": "github:clshortfuse/webhoster",
+  "license": "MIT",
   "main": "index.js",
   "type": "module",
   "engines": {
@@ -10,8 +15,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "clshortfuse@gmail.com",
-  "license": "MIT",
   "devDependencies": {
     "@fidm/x509": "^1.2.1",
     "@types/node": "^14.0.5",
