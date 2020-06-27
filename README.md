@@ -145,7 +145,7 @@ async function onPostComment({req, res}) {
     await insertComment(comment);
   } catch {
     res.status = 500;
-    return 'end;
+    return 'end';
   }
   res.status = 200;
   res.stream.end({status: 'OK'});
