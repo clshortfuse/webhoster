@@ -6,14 +6,8 @@ import * as http2server from './http2server.js';
 import * as tls from './tls.js';
 import { HTTPS_PORT } from './constants.js';
 
-import {
-  handleHttp1Request,
-  handleHttp2Stream,
-  DefaultMiddlewareChain,
-  MiddlewareSets,
-  AllMiddleware,
-  DefaultMiddlewareErrorHandlers,
-} from '../lib/RequestHandler.js';
+import HttpHandler from '../lib/HttpHandler.js';
+
 import { defaultSendHeadersMiddleware } from '../middleware/sendHeaders.js';
 import { defaultContentLengthMiddleware } from '../middleware/contentLength.js';
 import { defaultHashMiddleware } from '../middleware/hash.js';
@@ -330,9 +324,10 @@ function getJSONMiddleware({ res }) {
 const USE_HTTPS_REDIRECT = false;
 const SHOULD_CRASH = false;
 
-function handleAllMiddleware() {
+function setupHandler() {
+  const { preprocessors, middleware, errorHandlers } = HttpHandler.defaultInstance;
   // Conditional statement
-  DefaultMiddlewareChain.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
+  preprocessors.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
     // Send headers automatically
     sendHeaders: defaultSendHeadersMiddleware,
@@ -362,9 +357,9 @@ function handleAllMiddleware() {
       formURLEncodedFormat: 'object',
     }),
   };
-  DefaultMiddlewareChain.push(middlewareObject);
+  preprocessors.push(middlewareObject);
   const mapTest = new Map();
-  MiddlewareSets.add(mapTest);
+  middleware.add(mapTest);
   /** @type {any} */
   const getMiddlewareArray = [
     createMethodFilter('GET'),
@@ -389,12 +384,12 @@ function handleAllMiddleware() {
   );
 
   // Add error handler
-  MiddlewareSets.add([createMethodFilter('GET'),
+  middleware.add([createMethodFilter('GET'),
     createPathFilter('/error'),
     function throwError() {
       throw new Error('unexpected error!');
     }]);
-  MiddlewareSets.add([
+  middleware.add([
     createMethodFilter('GET'),
     createPathFilter('/catch'),
     function throwError() {
@@ -421,7 +416,7 @@ function handleAllMiddleware() {
   ]);
 
   // Inline middleware and filter adding
-  MiddlewareSets.add({
+  middleware.add({
     myPostMiddlewares: [
       createMethodFilter('POST'),
       [createPathFilter('/input.json'), inputMiddleware],
@@ -444,21 +439,25 @@ function handleAllMiddleware() {
     },
   });
 
-  DefaultMiddlewareErrorHandlers.push({
+  errorHandlers.push({
     onError({ res, err }) {
       console.error('Uncaught exception');
       console.error(err);
       res.status = 500;
     },
   });
-  console.dir(AllMiddleware, { colors: true, depth: null });
+  console.dir([
+    preprocessors,
+    middleware,
+    errorHandlers,
+  ], { colors: true, depth: null });
 }
 
 
 function setupHttp() {
   return httpserver.start().then((server) => {
     console.log('HTTP listening...', server.address());
-    server.addListener('request', handleHttp1Request);
+    server.addListener('request', HttpHandler.defaultInstance.handleHttp1Request);
   });
 }
 
@@ -475,14 +474,14 @@ function setupHttp2() {
     ...tlsOptions,
   }).then((server) => {
     console.log('HTTPS/2 listening...', server.address());
-    server.addListener('stream', handleHttp2Stream);
+    server.addListener('stream', HttpHandler.defaultInstance.handleHttp2Stream);
     server.addListener('request', (req, res) => {
       if (req.httpVersionMajor >= 2) return;
       // @ts-ignore
-      handleHttp1Request(req, res);
+      HttpHandler.defaultInstance.handleHttp1Request(req, res);
     });
   });
 }
 
-handleAllMiddleware();
+setupHandler();
 Promise.all([setupHttp(), setupHttp2()]).then(() => console.log('Ready.'));
