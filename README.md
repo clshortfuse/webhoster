@@ -1,3 +1,5 @@
+![npm](https://img.shields.io/npm/v/webhoster) ![David](https://img.shields.io/david/clshortfuse/webhoster) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/clshortfuse/webhoster) ![node-current](https://img.shields.io/node/v/webhoster) ![npm](https://img.shields.io/npm/dw/webhoster) ![GitHub top language](https://img.shields.io/github/languages/top/clshortfuse/webhoster)
+
 # webhoster
 
 An opt-in, stream-based approach to Web Hosting with NodeJS.
