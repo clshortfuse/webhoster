@@ -1,6 +1,16 @@
 {
   "name": "webhoster",
-  "keywords": ["http", "http2", "push", "host", "listener", "stream", "middleware", "cors", "gzip"],
+  "keywords": [
+    "http",
+    "http2",
+    "push",
+    "host",
+    "listener",
+    "stream",
+    "middleware",
+    "cors",
+    "gzip"
+  ],
   "version": "0.0.2",
   "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
   "author": "clshortfuse@gmail.com",
