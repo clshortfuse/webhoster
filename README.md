@@ -10,6 +10,16 @@ An opt-in, stream-based approach to Web Hosting with NodeJS.
 
 By default, the framework does nothing. It parses no headers. It writes no header. It never writes to any stream. That is, unless you add middleware. All middleware is built to the maximum throughput and do as little as possible.
 
+## install
+
+`npm install webhoster`
+
+## Quick Start
+
+** Coming soon! ** 
+
+For now, take a look at [/test/index.js](/test/index.js)
+
 ## Core
 
 * [HttpRequest.js](/lib/HttpRequest.js) - Class that provides the bare-minimum to bridge different protocols for client requests
