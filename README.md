@@ -10,7 +10,7 @@ An opt-in, stream-based approach to Web Hosting with NodeJS.
 
 #### Nothing is true; everything is permitted
 
-By default, the framework does nothing. It parses no headers. It writes no header. It never writes to any stream. That is, unless you add middleware. All middleware is built to the maximum throughput and do as little as possible.
+By default, the framework does nothing. It parses no headers. It writes no headers. It never writes to or reads from any stream. That is, unless you add middleware. All middleware is built to provide maximum throughput and do as little as possible.
 
 ## install
 
