@@ -38,7 +38,8 @@ For now, take a look at [/test/index.js](/test/index.js)
 ### Example
 
 ````js
-  HttpHandler.defaultInstance.preprocessors.push([
+  const handler = HttpHandler.defaultInstance;
+  handler.preprocessors.push([
     defaultSendHeadersMiddleware,
     defaultContentLengthMiddleware,
     defaultHashMiddleware,
@@ -47,14 +48,14 @@ For now, take a look at [/test/index.js](/test/index.js)
     createContentWriterMiddleware({ setCharset: true, setJSON: true }),
     createContentReaderMiddleware({ buildString: true, parseJSON: true }),
   ]);
-  HttpHandler.defaultInstance.middleware.add(imagesMiddleware);
-  HttpHandler.defaultInstance.middleware.add(return404Middleware);
-  HttpHandler.errorHandlers.push([
+  handler.middleware.add(imagesMiddleware);
+  handler.middleware.add(return404Middleware);
+  handler.errorHandlers.push([
     errorLoggerMiddleware,
     return500Middlware
   ]);
-  http1Server.addListener('request', HttpHandler.defaultInstance.handleHttp1Request);
-  http2Server.addListener('stream', HttpHandler.defaultInstance.handleHttp2Stream);
+  http1Server.addListener('request', handler.handleHttp1Request);
+  http2Server.addListener('stream', handler.handleHttp2Stream);
 ````
 
 ### [HttpRequest.js](/lib/HttpRequest.js)
