@@ -1,6 +1,6 @@
 ## v0.0.4
   * Add CommonJS support
-  * Add HttpListner helper
+  * Add `HttpListener` helper
   * Add SocketIO errata
 
 ## v0.0.3
