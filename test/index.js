@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 
 import { readFileSync, existsSync } from 'fs';
-import * as httpserver from './httpserver.js';
-import * as http2server from './http2server.js';
 import * as tls from './tls.js';
-import { HTTPS_PORT } from './constants.js';
+import {
+  HTTPS_PORT, HTTP_PORT, HTTPS_HOST, HTTP_HOST,
+} from './constants.js';
 
 import HttpHandler from '../lib/HttpHandler.js';
 
@@ -15,11 +15,12 @@ import { defaultContentEncoderMiddleware } from '../middleware/contentEncoder.js
 import { createMethodFilter } from '../middleware/methodFilter.js';
 import { createPathFilter, createPathRegexFilter } from '../middleware/pathFilter.js';
 import { createCORSMiddleware } from '../middleware/cors.js';
-import RequestHeaders from '../helpers/RequestHeaders.js';
-import ResponseHeaders from '../helpers/ResponseHeaders.js';
 import { createContentWriterMiddleware } from '../middleware/contentWriter.js';
 import { createContentReaderMiddleware } from '../middleware/contentReader.js';
 import { defaultContentDecoderMiddleware } from '../middleware/contentDecoder.js';
+import HttpListener from '../helpers/HttpListener.js';
+import RequestHeaders from '../helpers/RequestHeaders.js';
+import ResponseHeaders from '../helpers/ResponseHeaders.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -453,35 +454,16 @@ function setupHandler() {
   ], { colors: true, depth: null });
 }
 
-
-function setupHttp() {
-  return httpserver.start().then((server) => {
-    console.log('HTTP listening...', server.address());
-    server.addListener('request', HttpHandler.defaultInstance.handleHttp1Request);
-  });
-}
-
-function setupHttp2() {
-  const tlsOptions = tls.setup({
+const listener = new HttpListener({
+  insecureHost: HTTP_HOST,
+  insecurePort: HTTP_PORT,
+  secureHost: HTTPS_HOST,
+  securePort: HTTPS_PORT,
+  tlsOptions: tls.setup({
     key: existsSync('./certificates/localhost-privkey.pem') && readFileSync('./certificates/localhost-privkey.pem'),
     cert: existsSync('./certificates/localhost-privkey.pem') && readFileSync('./certificates/localhost-cert.pem'),
-  });
-
-  return http2server.start({
-    allowHTTP1: true,
-    SNICallback: tls.SNICallback,
-
-    ...tlsOptions,
-  }).then((server) => {
-    console.log('HTTPS/2 listening...', server.address());
-    server.addListener('stream', HttpHandler.defaultInstance.handleHttp2Stream);
-    server.addListener('request', (req, res) => {
-      if (req.httpVersionMajor >= 2) return;
-      // @ts-ignore
-      HttpHandler.defaultInstance.handleHttp1Request(req, res);
-    });
-  });
-}
+  }),
+});
 
 setupHandler();
-Promise.all([setupHttp(), setupHttp2()]).then(() => console.log('Ready.'));
+listener.startAll().then(() => console.log('Ready.'));
