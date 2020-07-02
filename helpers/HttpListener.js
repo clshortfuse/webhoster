@@ -1,7 +1,7 @@
 import http from 'http';
 import https from 'https';
 import http2 from 'http2';
-import { HttpHandler } from '../lib/index.js';
+import HttpHandler from '../lib/HttpHandler.js';
 
 export const SERVER_ALREADY_CREATED = 'SERVER_ALREADY_CREATED';
 
