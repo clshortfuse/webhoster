@@ -1,4 +1,4 @@
 node_modules/*
 certificates/*
-*/*.cjs
+*.cjs
 **/.DS_Store

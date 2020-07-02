@@ -11,7 +11,7 @@
     "cors",
     "gzip"
   ],
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
   "author": "clshortfuse@gmail.com",
   "homepage": "https://github.com/clshortfuse/webhoster",
@@ -19,8 +19,7 @@
   "license": "MIT",
   "main": "index.cjs",
   "exports": {
-    "require": "./index.cjs",
-    "import": "./index.js"
+    "./": "./"
   },
   "type": "module",
   "engines": {

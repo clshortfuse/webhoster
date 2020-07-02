@@ -20,6 +20,8 @@
     "import/no-useless-path-segments": ["error", {
       "noUselessIndex": false
     }],
+    "import/prefer-default-export": "off",
+    "import/no-anonymous-default-export": ["error"],
     "prefer-destructuring": ["error", {
       "VariableDeclarator": {
         "array": false,

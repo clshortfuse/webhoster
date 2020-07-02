@@ -1,6 +1,4 @@
-/* eslint-disable node/no-missing-import */
-import resolve from '@rollup/plugin-node-resolve';
-
+/* eslint-disable import/no-anonymous-default-export */
 /** @typedef {import('rollup')} */
 export default {
   input: 'index.js',
@@ -8,7 +6,4 @@ export default {
     file: 'index.cjs',
     format: 'cjs',
   },
-  plugins: [
-    resolve(),
-  ],
 };
