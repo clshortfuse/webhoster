@@ -14,9 +14,9 @@ export function addHttp2Support(httpHandler, socketioPath = /^\/socket.io\//i) {
   const newFunction = (...args) => {
     const headers = args[1];
     if (headers?.[':path']?.match(socketioPath)) {
-      return;
+      return Promise.resolve(null);
     }
-    fn.call(httpHandler, ...args);
+    return fn.call(httpHandler, ...args);
   };
   // @ts-ignore
   // eslint-disable-next-line no-param-reassign
