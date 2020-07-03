@@ -1,3 +1,6 @@
+## v0.0.5
+  * Fix SocketIO errata
+
 ## v0.0.4
   * Add CommonJS support
   * Add `HttpListener` helper
