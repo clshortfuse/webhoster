@@ -43,7 +43,7 @@ function executeHashMiddleware({ res }, options = {}) {
       // Manually pipe
       const needsDrain = !hashStream.write(chunk);
       if (needsDrain) {
-        this.once('drain', () => {
+        hashStream.once('drain', () => {
           callback(null, chunk);
         });
       } else {
