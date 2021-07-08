@@ -1,5 +1,5 @@
 /**
- * @template T
+ * @template {any} T
  * @class AsyncObject<T>
  */
 export default class AsyncObject {
@@ -22,7 +22,7 @@ export default class AsyncObject {
 
   /** @return {Promise<T>} */
   get() {
-    if (this.hasValue()) {
+    if (!this.isBusy() && this.hasValue()) {
       return Promise.resolve(this.value);
     }
     return new Promise((resolve, reject) => {
@@ -31,7 +31,7 @@ export default class AsyncObject {
   }
 
   /**
-   * @param {T} value
+   * @param {T} [value]
    * @return {Promise<T>}
    */
   set(value) {
@@ -62,5 +62,10 @@ export default class AsyncObject {
     this.value = undefined;
     this.busy = true;
     this.ready = false;
+  }
+
+  /** @return {void} */
+  setBusy() {
+    this.busy = true;
   }
 }

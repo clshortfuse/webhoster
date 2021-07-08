@@ -5,31 +5,39 @@
 
 /** @typedef {'GET'|'HEAD'|'POST'|'PUT'|'DELETE'|'CONNECT'|'OPTIONS'|'TRACE'|'PATCH'} RequestMethod */
 
-/** @typedef {boolean} MiddlewareFilterResultType */
-/** @typedef {Promise<MiddlewareFilterResultType>|MiddlewareFilterResultType} MiddlewareFilterResult */
-
-
-/** @typedef {'end'|'break'|'continue'|null|undefined|void} MiddlewareFunctionResultType */
-/** @typedef {Promise<MiddlewareFunctionResultType>|MiddlewareFunctionResultType} MiddlewareFunctionResult */
+/** @typedef {'end'|'break'|'continue'|boolean|null|undefined|void} MiddlewareFunctionResultType */
+/** @typedef {Promise<Middleware>|Middleware} MiddlewareFunctionResult */
 /** @typedef {true|false} MiddlewareContinueBoolean */
 
+/**
+ * @typedef {Object} IMiddleware
+ * @prop {MiddlewareFunction} execute
+ * @prop {MiddlewareErrorHandlerFunction} [onError]
+ */
+
+/**
+ * @typedef {Object} HandlerState
+ * @prop {number[]} treeIndex Middleware level
+ */
 
 /**
  * @typedef {Object} MiddlewareFunctionParams
  * @prop {HttpRequest} req
  * @prop {HttpResponse} res
+ * @prop {HandlerState} state
  */
 
 /**
  * @typedef {Object} MiddlewareErrorHandlerParams
  * @prop {HttpRequest} req
  * @prop {HttpResponse} res
- * @prop {any} err
+ * @prop {HandlerState} state
+ * @prop {any} [err]
  */
 
 /**
  * @callback MiddlewareFunction
- * @param {MiddlewareFunctionParams} params
+ * @param {!MiddlewareFunctionParams} params
  * @return {MiddlewareFunctionResult}
  */
 
@@ -42,15 +50,6 @@
 /**
  * @typedef {Object} MiddlewareErrorHandler
  * @prop {MiddlewareErrorHandlerFunction} onError
- */
-
-/**
- * Breaks middleware chain returns `false`.
- *
- * **Note**: Must return a boolean
- * @callback MiddlewareFilter
- * @param {MiddlewareFunctionParams} params
- * @return {MiddlewareFilterResult} continue?
  */
 
 /**

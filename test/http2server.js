@@ -1,5 +1,6 @@
 import http2 from 'http2';
-import { HTTPS_PORT, HTTPS_HOST } from './constants.js';
+
+import { HTTPS_HOST, HTTPS_PORT } from './constants.js';
 
 /** @type {http2.Http2SecureServer} */
 let http2Server = null;

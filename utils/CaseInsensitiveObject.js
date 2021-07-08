@@ -1,5 +1,22 @@
+export default class CaseInsensitiveObject {
+  /** @param {Object} [object] */
+  constructor(object) {
+    if (object && object instanceof CaseInsensitiveObject) {
+      return object;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const instance = this;
+    const proxy = new Proxy(instance, CaseInsensitiveObject.defaultProxyHandler);
+    Object.entries(object).forEach(([key, value]) => {
+      // @ts-ignore Coerce
+      this[key] = value;
+    });
+    return proxy;
+  }
+}
+
 /** @type {ProxyHandler<Object>} */
-const defaultProxyHandler = {
+CaseInsensitiveObject.defaultProxyHandler = {
   get(target, p, receiver) {
     return Reflect.get(target, typeof p === 'string' ? p.toLowerCase() : p, receiver);
   },
@@ -13,19 +30,4 @@ const defaultProxyHandler = {
     return Reflect.deleteProperty(target, typeof p === 'string' ? p.toLowerCase() : p);
   },
 };
-
-export default class CaseInsensitiveObject {
-  /** @param {Object} [object] */
-  constructor(object) {
-    if (object && object instanceof CaseInsensitiveObject) {
-      return object;
-    }
-    const instance = this;
-    const proxy = new Proxy(instance, defaultProxyHandler);
-    Object.entries(object).forEach(([key, value]) => {
-      this[key] = value;
-    });
-    return proxy;
-  }
-}
 

@@ -2,11 +2,12 @@
 
 import { TextDecoder } from 'util';
 import AsyncObject from '../utils/AsyncObject.js';
+import { noop } from '../utils/function.js';
 import RequestHeaders from './RequestHeaders.js';
 
 /**
  * @typedef {Object} RequestReaderOptions
- * @param {boolean} [cache=true]
+ * @prop {boolean} [cache=true]
  */
 
 const BUFFER_SIZE = 4096;
@@ -72,7 +73,7 @@ export default class RequestReader {
       clearTimeout(sendPingTimeout);
       if (this.request.canPing) {
         sendPingTimeout = setTimeout(() => {
-          this.request.ping().catch(() => {});
+          this.request.ping().catch(noop);
         }, STREAM_WAIT_MS);
       }
     });

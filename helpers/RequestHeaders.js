@@ -37,6 +37,7 @@ export default class RequestHeaders extends HeadersHandler {
   #cookiesProxy = null;
 
   get cookies() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const instance = this;
     return {
       /**
@@ -59,6 +60,7 @@ export default class RequestHeaders extends HeadersHandler {
   /** @return {Object<string,string[]>} */
   get cookieEntries() {
     if (!this.#cookiesProxy) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const instance = this;
       /** @type {Map<string,string[]>} */
       const arrayProxyMap = new Map();

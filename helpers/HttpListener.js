@@ -135,7 +135,7 @@ export default class HttpListener {
         this.http2Server.addListener('stream', this.httpHandler.handleHttp2Stream);
         this.http2Server.addListener('request', (req, res) => {
           if (req.httpVersionMajor >= 2) return;
-          // @ts-ignore
+          // @ts-ignore Ignore typings
           this.httpHandler.handleHttp1Request(req, res);
         });
         resolve(this.http2Server);

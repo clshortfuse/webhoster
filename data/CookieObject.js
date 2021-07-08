@@ -68,13 +68,12 @@ export default class CookieObject {
           options.httpOnly = true;
           break;
         case 'samesite':
-          // @ts-ignore
+          // @ts-ignore No cast
           options.sameSite = value;
           break;
         default:
       }
     });
-    // @ts-ignore
     return new CookieObject(options);
   }
 

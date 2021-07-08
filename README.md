@@ -40,19 +40,19 @@ For now, take a look at [/test/index.js](/test/index.js)
 ````js
   const handler = HttpHandler.defaultInstance;
   handler.preprocessors.push([
-    defaultSendHeadersMiddleware,
-    defaultContentLengthMiddleware,
-    defaultHashMiddleware,
-    defaultContentEncoderMiddleware,
-    defaultContentDecoderMiddleware,
-    createContentWriterMiddleware({ setCharset: true, setJSON: true }),
-    createContentReaderMiddleware({ buildString: true, parseJSON: true }),
+    new SendHeadersMiddleware(),
+    new ContentLengthMiddleware(),
+    new HashMiddleware(),
+    new ContentEncoderMiddleware(),
+    new ContentDecoderMiddleware(),
+    new ContentWriterMiddleware({ setCharset: true, setJSON: true }),
+    new ContentReaderMiddleware({ buildString: true, parseJSON: true }),
   ]);
   handler.middleware.add(imagesMiddleware);
   handler.middleware.add(return404Middleware);
   handler.errorHandlers.push([
     errorLoggerMiddleware,
-    return500Middlware
+    return500Middleware
   ]);
   http1Server.addListener('request', handler.handleHttp1Request);
   http2Server.addListener('stream', handler.handleHttp2Stream);
@@ -139,45 +139,46 @@ To support branching, `Middleware` can also be a `Iterable<Middleware>` (include
 ## Included Middleware
 
 ### Response Middleware
-* [sendHeaders.js](/middleware/sendHeaders.js) - Automatically send response headers when before writing or ending a response stream
-* [contentLength.js](/middleware/contentLength.js) - Sets `Content-Length` based on response stream content writes
-* [hash.js](/middleware/hash.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
-* [contentEncoder.js](/middleware/contentEncoder.js) - Applies `Content-Encoding` to response based on 'Accept-Encoding` request header
-* [contentWriter.js](/middleware/contentWriter.js) - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
+* [SendHeaders](/middleware/SendHeadersMiddleware.js) - Automatically sends response headers before writing or ending a response stream
+* [ContentLength](/middleware/contentLengthMiddleware.js) - Sets `Content-Length` based on response stream content writes
+* [Hash](/middleware/HashMiddleware.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
+* [ContentEncoder](/middleware/ContentEncoderMiddleware.js) - Applies `Content-Encoding` to response based on `Accept-Encoding` request header
+* [ContentWriter](/middleware/ContentWriterMiddleware.js) - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
 
 ### Request Middleware
-* [contentDecoder.js](/middleware/contentDecoder.js) - Decodes `Content-Encoding` from request streams
-* [contentReader.js](/middleware/contentReader.js) - Adds `Object Mode` read support to request stream, include `string`, `JSON`, and `urlencoded` support. Can cache transformation into `req.local` for convenience.
-
-### Other Middleware
-* [cors.js](/middleware/cors.js) - Handles preflight `OPTION` requests and sets necessary response headers for other methods
+* [ContentDecoder](/middleware/ContentDecoderMiddleware.js) - Decodes `Content-Encoding` from request streams
+* [ContentReader](/middleware/ContentReaderMiddleware.js) - Adds `Object Mode` read support to request stream, including `string`, `JSON`, and `urlencoded` support. Can cache transformation into `req.local` for convenience.
 
 ### Logic Middleware
-* [pathFilter.js](/middleware/pathFilter.js) - Creates logic filter based on URL pathname
-* [methodFilter.js](/middleware/methodFilter.js) - Creates logic filter based on request method
+* [Path](/middleware/PathMiddleware.js) - Creates logic filter based on URL pathname
+* [Method](/middleware/MethodMiddleware.js) - Creates logic filter based on request method
+
+### Other Middleware
+* [CORS](/middleware/CORSMiddleware.js) - Handles preflight `OPTION` requests and sets necessary response headers for other methods
+
 
 ### Examples:
 
 ````js
 HttpHandler.defaultInstance.preprocessors.push({
   // This is an object with names for each entry
-  sendHeaders: defaultSendHeadersMiddleware,
-  contentLength: defaultContentLengthMiddleware,
-  hash: (USE_HASH ? defaultHashMiddleware : 'continue'),
+  sendHeaders: new SendHeadersMiddleware(),
+  contentLength: new ContentLengthMiddleware(),
+  hash: (USE_HASH ? new HashMiddleware() : 'continue'),
 });
 HttpHandler.defaultInstance.middleware.add([
-  createPathRelativeFilter('/api/'),
-  defaultCORSMiddleware,
-  [createMethodFilter('GET'), myAPIGetFunctions],
-  [createMethodFilter('POST'), myAPIGetFunctions],
+  PathMiddleware.SUBPATH('/api'),
+  new CORSMiddleware(),
+  [MethodMiddleware.GET, myAPIGetFunctions],
+  [MethodMiddleware.POST, myAPIPostFunctions],
 ]);
 HttpHandler.defaultInstance.middleware.add([
-  createPathRegexFilter('^/(index.html?)?$'),
+  new PathMiddleware(/^\/(index.html?)?$/),
   indexPageMiddleware,
   'end',
 ]);
 HttpHandler.defaultInstance.middleware.add(arrayToBePopulatedLater);
-HttpHandler.defaultInstance.middleware.add((({ res }) => { res.status = 404; return 'end'; }));
+HttpHandler.defaultInstance.middleware.add(({ res }) => { res.status = 404; return 'end'; });
 HttpHandler.defaultInstance.errorHandlers.push({
   onError({ res, err }) {
     console.error(err);

@@ -1,16 +1,15 @@
 import {
+  IMiddleware,
   MiddlewareFunction,
-  MiddlewareFilter,
   MiddlewareErrorHandler,
-  MiddlewareContinueBoolean
+  MiddlewareContinueBoolean,
 } from './index.js';
 
 export type Middleware = MiddlewareFunction
-  | MiddlewareFilter
+  | IMiddleware
   | MiddlewareErrorHandler
   | Iterable<Middleware>
   | Map<any, Middleware>
   | {[key:string]: Middleware, onError?: undefined}
   | MiddlewareContinueBoolean
-  | 'end'|'break'|'continue'|null|undefined;
-
+  | 'end'|'break'|'continue'|null|undefined|void;

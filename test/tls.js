@@ -1,5 +1,6 @@
-import x509 from '@fidm/x509';
 import { createSecureContext } from 'tls';
+
+import x509 from '@fidm/x509';
 
 /** @typedef {import('tls').SecureContext} SecureContext
 /** @typedef {import('tls').TlsOptions} TlsOptions */

@@ -1,5 +1,6 @@
-import HeadersHandler from './HeadersParser.js';
 import CookieObject from '../data/CookieObject.js';
+
+import HeadersHandler from './HeadersParser.js';
 
 /** @typedef {import('../types').HttpResponse} HttpResponse */
 /** @typedef {import('../types').CookieDetails} CookieDetails */
@@ -16,7 +17,6 @@ const COOKIE_DETAIL_KEYS = [
   'httpOnly',
   'sameSite',
 ];
-
 
 export default class ResponseHeaders extends HeadersHandler {
   /** @param {HttpResponse} res */
@@ -149,6 +149,7 @@ export default class ResponseHeaders extends HeadersHandler {
   }
 
   get cookies() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const instance = this;
     return {
       /**
@@ -221,7 +222,7 @@ export default class ResponseHeaders extends HeadersHandler {
           instance.cookieEntries.push(cookieObject);
         } else {
           COOKIE_DETAIL_KEYS.forEach((key) => {
-            // @ts-ignore
+            // @ts-ignore Coerce
             cookieObject[key] = details[key];
           });
         }
@@ -273,13 +274,13 @@ export default class ResponseHeaders extends HeadersHandler {
     };
   }
 
-
   /** @return {Array<CookieObject>} */
   get cookieEntries() {
     if (!this.#setCookiesProxy) {
       if (!this.headers['set-cookie']) {
         this.headers['set-cookie'] = [];
       }
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const instance = this;
       /** @type {CookieObject[]} */
       const values = instance.headers['set-cookie']

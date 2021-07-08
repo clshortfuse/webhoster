@@ -11,7 +11,7 @@
     "cors",
     "gzip"
   ],
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
   "author": "clshortfuse@gmail.com",
   "homepage": "https://github.com/clshortfuse/webhoster",

@@ -1,26 +1,27 @@
 /* eslint-disable no-console */
 
-import { readFileSync, existsSync } from 'fs';
-import * as tls from './tls.js';
-import {
-  HTTPS_PORT, HTTP_PORT, HTTPS_HOST, HTTP_HOST,
-} from './constants.js';
+import { existsSync, readFileSync } from 'fs';
 
-import HttpHandler from '../lib/HttpHandler.js';
-
-import { defaultSendHeadersMiddleware } from '../middleware/sendHeaders.js';
-import { defaultContentLengthMiddleware } from '../middleware/contentLength.js';
-import { defaultHashMiddleware } from '../middleware/hash.js';
-import { defaultContentEncoderMiddleware } from '../middleware/contentEncoder.js';
-import { createMethodFilter } from '../middleware/methodFilter.js';
-import { createPathFilter, createPathRegexFilter } from '../middleware/pathFilter.js';
-import { createCORSMiddleware } from '../middleware/cors.js';
-import { createContentWriterMiddleware } from '../middleware/contentWriter.js';
-import { createContentReaderMiddleware } from '../middleware/contentReader.js';
-import { defaultContentDecoderMiddleware } from '../middleware/contentDecoder.js';
 import HttpListener from '../helpers/HttpListener.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
+import HttpHandler from '../lib/HttpHandler.js';
+import CORSMiddleware from '../middleware/CORSMiddleware.js';
+import ContentDecoderMiddleware from '../middleware/ContentDecoderMiddleware.js';
+import ContentEncoderMiddleware from '../middleware/ContentEncoderMiddleware.js';
+import ContentLengthMiddleware from '../middleware/ContentLengthMiddleware.js';
+import ContentReaderMiddleware from '../middleware/ContentReaderMiddleware.js';
+import ContentWriterMiddleware from '../middleware/ContentWriterMiddleware.js';
+import HashMiddleware from '../middleware/HashMiddleware.js';
+import HeadMethodMiddleware from '../middleware/HeadMethodMiddleware.js';
+import MethodMiddleware from '../middleware/MethodMiddleware.js';
+import PathMiddleware from '../middleware/PathMiddleware.js';
+import SendHeadersMiddleware from '../middleware/SendHeadersMiddleware.js';
+
+import {
+  HTTPS_HOST, HTTPS_PORT, HTTP_HOST, HTTP_PORT,
+} from './constants.js';
+import * as tls from './tls.js';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -133,9 +134,10 @@ function plainTextMiddleware({ res }) {
 
 /** @type {MiddlewareFunction} */
 function blankMiddleware({ res }) {
-  console.log('blankMiddlware');
+  console.log('blankMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
+  res.stream.end();
   return 'end';
 }
 
@@ -148,7 +150,7 @@ function noContentMiddleware({ res }) {
 
 /** @type {MiddlewareFunction} */
 function gzipMiddleware({ res }) {
-  console.log('gzipMiddlware');
+  console.log('gzipMiddleware');
   res.status = 200;
   res.headers['content-type'] = 'text/html';
   res.headers['content-encoding'] = 'gzip';
@@ -305,6 +307,14 @@ async function formGetMiddleware({ req, res }) {
 }
 
 /** @type {MiddlewareFunction} */
+async function outputURLMiddleware({ req, res }) {
+  console.log('outputURLMiddleware', req.locals.path);
+  res.status = 200;
+  res.stream.end(req.url.pathname);
+  return 'end';
+}
+
+/** @type {MiddlewareFunction} */
 async function formPostMiddleware({ req, res }) {
   console.log('formPostMiddleware');
   const { value } = await req.stream[Symbol.asyncIterator]().next();
@@ -330,28 +340,27 @@ function setupHandler() {
   // Conditional statement
   preprocessors.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
   const middlewareObject = {
+    // Discard body content
+    headMethod: new HeadMethodMiddleware(),
     // Send headers automatically
-    sendHeaders: defaultSendHeadersMiddleware,
+    sendHeaders: new SendHeadersMiddleware(),
     // Calculate length of anything after
-    contentLength: defaultContentLengthMiddleware,
+    contentLength: new ContentLengthMiddleware(),
     // Allow Cross-Origin Resource Sharing
-    cors: createCORSMiddleware({
+    cors: new CORSMiddleware({
       allowOrigin: ['http://localhost:8080', 'https://localhost:8443'],
     }),
     // Hash anything after
-    hash: defaultHashMiddleware,
+    hash: new HashMiddleware(),
     // Compress anything after
-    contentEncoder: defaultContentEncoderMiddleware,
+    contentEncoder: new ContentEncoderMiddleware(),
     // Convert Objects and Strings to Buffer
-    contentWriter: createContentWriterMiddleware({
-      setCharset: true,
-      setJSON: true,
-    }),
+    contentWriter: new ContentWriterMiddleware({ setCharset: true, setJSON: true }),
 
     // Automatically decodes content
-    contentDecoder: defaultContentDecoderMiddleware,
+    contentDecoder: new ContentDecoderMiddleware(),
     // Automatically reads text, JSON, and form-url-encoded from requests
-    contentReader: createContentReaderMiddleware({
+    contentReader: new ContentReaderMiddleware({
       buildString: true,
       defaultMediaType: 'application/json',
       parseJSON: true,
@@ -363,36 +372,67 @@ function setupHandler() {
   middleware.add(mapTest);
   /** @type {any} */
   const getMiddlewareArray = [
-    createMethodFilter('GET'),
-    [createPathRegexFilter('^/(index.html?)?$'), indexMiddleware],
-    [createPathFilter('/large.html'), largeMiddleware],
-    [createPathFilter('/chunk.html'), chunkMiddleware],
-    [createPathFilter('/blank.html'), blankMiddleware],
-    [createPathFilter('/nocontent.html'), noContentMiddleware],
-    [createPathFilter('/gzip.html'), gzipMiddleware],
-    [createPathFilter('/plaintext.html'), plainTextMiddleware],
-    [createPathFilter('/get.json'), getJSONMiddleware],
-    [createPathFilter('/form'), formGetMiddleware],
+    MethodMiddleware.GET,
+    [new PathMiddleware(/^\/(index.html?)?$/), indexMiddleware],
+    [new PathMiddleware('/large.html'), largeMiddleware],
+    [new PathMiddleware('/chunk.html'), chunkMiddleware],
+    [new PathMiddleware('/blank.html'), blankMiddleware],
+    [new PathMiddleware('/nocontent.html'), noContentMiddleware],
+    [new PathMiddleware('/gzip.html'), gzipMiddleware],
+    [new PathMiddleware('/plaintext.html'), plainTextMiddleware],
+    [new PathMiddleware('/get.json'), getJSONMiddleware],
+    [new PathMiddleware('/form'), formGetMiddleware],
   ];
   mapTest.set('gets', getMiddlewareArray);
   // Modify after insertion
   getMiddlewareArray.push(
-    [createPathFilter('/script.js'), scriptMiddleware],
+    [new PathMiddleware({ path: '/script.js' }), scriptMiddleware],
   );
   // Add terminator middleware
   getMiddlewareArray.push(
-    [createPathRegexFilter('/output.json$'), outputMiddleware, 'end'],
+    [new PathMiddleware({ path: /\/output.json$/ }), outputMiddleware, 'end'],
   );
 
+  // Predefined Route
+  const route = [
+    [new PathMiddleware('/'), outputURLMiddleware],
+    [new PathMiddleware('/foo'), outputURLMiddleware],
+    [new PathMiddleware('/bar'), outputURLMiddleware],
+    [new PathMiddleware('/baz'), outputURLMiddleware],
+  ];
+
+  // Automatic Path Routing
+  middleware.add([
+    MethodMiddleware.GET,
+    [new PathMiddleware({ path: /^(\/subpath)\/?.*/, subPath: true }), [
+      [new PathMiddleware('/'), outputURLMiddleware],
+      [new PathMiddleware('/foo'), outputURLMiddleware],
+      [new PathMiddleware('/bar'), outputURLMiddleware],
+    ]],
+    [PathMiddleware.SUBPATH('/subpath2'), [
+      [new PathMiddleware('/'), outputURLMiddleware],
+      [new PathMiddleware('/foo'), outputURLMiddleware],
+      [new PathMiddleware('/baz'), outputURLMiddleware],
+    ]],
+    [PathMiddleware.SUBPATH('/subpath3'), route],
+    [PathMiddleware.SUBPATH('/foo'), [
+      [new PathMiddleware('/'), outputURLMiddleware],
+      [PathMiddleware.SUBPATH('/bar'), [
+        [new PathMiddleware('/'), outputURLMiddleware],
+        [PathMiddleware.SUBPATH('/baz'), route],
+      ]],
+    ]],
+  ]);
+
   // Add error handler
-  middleware.add([createMethodFilter('GET'),
-    createPathFilter('/error'),
+  middleware.add([MethodMiddleware.GET,
+    new PathMiddleware('/error'),
     function throwError() {
       throw new Error('unexpected error!');
     }]);
   middleware.add([
-    createMethodFilter('GET'),
-    createPathFilter('/catch'),
+    MethodMiddleware.GET,
+    new PathMiddleware('/catch'),
     function throwError() {
       throw new Error('EXCEPTION!');
     },
@@ -410,7 +450,7 @@ function setupHandler() {
     },
     function responseAfterError({ res }) {
       res.status = 200;
-      res.stream.write('Error was caught.');
+      res.stream.end('Error was caught.');
       return 'end';
     },
 
@@ -419,23 +459,24 @@ function setupHandler() {
   // Inline middleware and filter adding
   middleware.add({
     myPostMiddlewares: [
-      createMethodFilter('POST'),
-      [createPathFilter('/input.json'), inputMiddleware],
-      [createPathFilter('/form'), formPostMiddleware],
+      MethodMiddleware.POST,
+      [new PathMiddleware('/input.json'), inputMiddleware],
+      [new PathMiddleware('/form'), formPostMiddleware],
     ],
     inlineFilter: [
       () => SHOULD_CRASH,
       () => { throw new Error('Break not called!'); },
     ],
     corsTest: [
-      createMethodFilter('GET'),
-      createPathFilter('/cors.html'),
+      MethodMiddleware.GET,
+      new PathMiddleware('/cors.html'),
       corsTest,
       'end',
     ],
     unknownFile({ req, res }) {
       console.log('Unknown', req.url.toString());
       res.status = 404;
+      res.stream.end();
       return 'end';
     },
   });
@@ -445,6 +486,8 @@ function setupHandler() {
       console.error('Uncaught exception');
       console.error(err);
       res.status = 500;
+      res.stream.end();
+      return 'end';
     },
   });
   console.dir([

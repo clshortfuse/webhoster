@@ -30,5 +30,3 @@ export function parseQualityValues(input) {
     }).sort((a, b) => (b?.[1]?.q ?? 1) - (a?.[1]?.q ?? 1));
   return new Map(tupleArray);
 }
-
-export function noop() {}
