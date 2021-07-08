@@ -116,9 +116,7 @@ export default class ContentWriterMiddleware {
     const newWritable = new Transform({
       writableObjectMode: true,
       transform: (chunk, e, callback) => {
-        console.log('ContentWriterMiddleware:', 'transform', chunk.length);
         if (Buffer.isBuffer(chunk)) {
-          console.log('Calling back with buffer');
           callback(null, chunk);
           return;
         }
@@ -134,9 +132,7 @@ export default class ContentWriterMiddleware {
               res.locals[cacheName] = chunk;
             }
           }
-          console.log('Calling back with string');
           const callbackData = Buffer.from(chunk, encoding);
-          console.log(callbackData);
           callback(null, callbackData);
           return;
         }
@@ -150,12 +146,10 @@ export default class ContentWriterMiddleware {
           if (this.setJSON && !hasSetJSON && !res.headersSent) {
             setJSONMediaType();
           }
-          console.log('calling back with JSON');
           callback(null, Buffer.from(JSON.stringify(chunk), encoding));
           return;
         }
 
-        console.log('calling back with string?');
         callback(null, chunk);
       },
     });

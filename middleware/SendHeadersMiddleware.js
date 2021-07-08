@@ -26,7 +26,6 @@ export default class SendHeadersMiddleware {
     const newWritable = new PassThrough();
     const destination = res.replaceStream(newWritable);
     newWritable.once('data', () => {
-      console.log('SendHeadersMiddleware:', 'data');
       if (!res.headersSent) {
         if (this.setStatus && res.status == null) {
           res.status = 200;
@@ -35,7 +34,6 @@ export default class SendHeadersMiddleware {
       }
     });
     newWritable.on('end', () => {
-      console.log('SendHeadersMiddleware:', 'end');
       if (!res.headersSent) {
         if (this.setStatus && res.status == null) {
           res.status = 204;

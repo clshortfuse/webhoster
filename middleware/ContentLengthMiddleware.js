@@ -41,7 +41,6 @@ export default class ContentLengthMiddleware {
     const { delayCycle, overrideHeader } = this;
     const newWritable = new Transform({
       transform(chunk, encoding, callback) {
-        console.log('ContentLengthMiddleware:', 'tranform');
         length += chunk.length;
         if (delayCycle === false) {
           callback(null, chunk);
@@ -60,7 +59,6 @@ export default class ContentLengthMiddleware {
         callback();
       },
       flush(callback) {
-        console.log('ContentLengthMiddleware:', 'flush');
         if (!res.headersSent) {
         /**
          * Any response message which "MUST NOT" include a message-body

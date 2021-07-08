@@ -22,7 +22,6 @@ export default class HeadMethodMiddleware {
     const newWritable = new PassThrough({});
     const destination = res.replaceStream(newWritable);
     newWritable.on('end', () => {
-      console.log('HeadMethodMiddleware', 'end');
       destination.end();
     });
     return 'continue';
