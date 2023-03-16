@@ -2,7 +2,7 @@
 
 # webhoster
 
-An opt-in, stream-based approach to Web Hosting with NodeJS.
+An opt-in, stream-based, tree-processing approach to Web Hosting with NodeJS.
 
 * Supports HTTP
 * Supports HTTPS
@@ -10,7 +10,7 @@ An opt-in, stream-based approach to Web Hosting with NodeJS.
 
 #### Nothing is true; everything is permitted
 
-By default, the framework does nothing. It parses no headers. It writes no headers. It never writes to or reads from any stream. That is, unless you add middleware. All middleware is built to provide maximum throughput and do as little as possible.
+By default, the framework does nothing. It parses no headers. It writes no headers. It never writes to or reads from any stream. All processing is handled by middleware. All middleware is built to provide maximum throughput and do as little as possible.
 
 ## install
 
@@ -28,10 +28,9 @@ For now, take a look at [/test/index.js](/test/index.js)
 *Class that handles the logic for handling requests and responses*
 
 * `.defaultInstance` - (`HttpHandler`) - Returns a instance of `HttpHandler` that can be accessed staticly.
-* `.preprocessors` - (`Middleware[]`) - An array of middleware to use when handling requests before running the main middleware collection. 
-* `.middleware` - (`Set<Middleware>`) - A collection of middleware chains to iterate though when handling a request. It is recommended to create isolated chains (eg: `/images/`; `/api/`; `/views/`; etc.). The use of `Set` type is to avoid mistakenly inserting the same middleware chain twice.
+* `.middleware` - (`Middleware[]`) - An array of middleware operations to iterate through when handling a request. It is recommended to create isolated branches (eg: `/images/`; `/api/`; `/views/`; etc.).
 * `.errorHandlers` - (`MiddlewareErrorHandler[]`) - An array of `MiddlewareErrorHandler` that will handle errors and respond appropriately (eg: `res.status = 500`)
-* `.handleRequest` - (`function(MiddlewareFunctionParams):Promise<HttpResponse>`) - handles logic for calling preprocessors, middleware, and error handlers. Unlikely to be used directly.
+* `.handleRequest` - (`function(MiddlewareFunctionParams):Promise<HttpResponse>`) - handles logic for calling middleware and error handlers. Unlikely to be used directly.
 * `.handleHttp1Request` - (`function(IncomingMessage, ServerResponse):Promise<HttpResponse>`) - constructs a new `HttpRequest` and `HttpResponse` based on the HTTP1 parameters and passes it to `handleRequest`
 * `.handleHttp2Stream` - (`function(ServerHttp2Stream, IncomingHttpHeaders, HttpResponseOptions):Promise<HttpResponse>`) - constructs a new `HttpRequest` and `HttpResponse` based on the HTTP2 parameters and passes it to `handleRequest`
 
@@ -39,21 +38,24 @@ For now, take a look at [/test/index.js](/test/index.js)
 
 ````js
   const handler = HttpHandler.defaultInstance;
-  handler.preprocessors.push([
-    new SendHeadersMiddleware(),
-    new ContentLengthMiddleware(),
-    new HashMiddleware(),
-    new ContentEncoderMiddleware(),
-    new ContentDecoderMiddleware(),
-    new ContentWriterMiddleware({ setCharset: true, setJSON: true }),
-    new ContentReaderMiddleware({ buildString: true, parseJSON: true }),
-  ]);
-  handler.middleware.add(imagesMiddleware);
-  handler.middleware.add(return404Middleware);
-  handler.errorHandlers.push([
+  handler.middleware.push(
+    new ContentDecoderMiddleware(), // Automatically decodes content
+    new SendStringMiddleware(), // Auto convert strings to Buffer
+    new SendJsonMiddleware(), // Auto converts objects to JSON
+    new ContentEncoderMiddleware(), // Compress anything after
+    new HashMiddleware(), // Hash anything after
+    new ContentLengthMiddleware(), // Calculate length of anything after
+    new AutoHeadersMiddleware(), // Send headers automatically
+    new HeadMethodMiddleware(), // Discard body content
+  );
+  handler.middleware.push(
+    imagesMiddleware,
+    return404Middleware,
+  );
+  handler.errorHandlers.push(
     errorLoggerMiddleware,
-    return500Middleware
-  ]);
+    return500Middleware,
+  );
   http1Server.addListener('request', handler.handleHttp1Request);
   http2Server.addListener('stream', handler.handleHttp2Stream);
 ````
@@ -61,58 +63,66 @@ For now, take a look at [/test/index.js](/test/index.js)
 ### [HttpRequest.js](/lib/HttpRequest.js)
 *Class that provides the bare-minimum to bridge different protocols for client requests*
 
-* `.stream` - (`Readable`) - This is generally how you will read content inside client requests. With no middleware, it emits a `Buffer`. But if are using an Object Mode middleware like `contentReader.js`, events may emit an `Object` or `string`.
+* `.read()` - `Promise<any>` - Returns content as handled by request's content handlers. Returns `.raw()` if no compatible handler found.
+* `.stream` - (`Readable`) - Allows for direct interaction with tail-end of the request stream pipeline. With no middleware, it emits `Buffer` chunks.
+* `.body` - (`ReadableStream`) - Returns request's body as `ReadableStream` (if supported).
+* `.bodyUsed` - (`boolean`) - Returns whether request's body has been read from.
+* `.arrayBuffer()` - (`Promise<ArrayBuffer>`) - Returns a promise fulfilled with request's body as `ArrayBuffer`.
+* `.blob()` - (`Promise<Blob>`) - Returns a promise fulfilled with request's body as `Blob`.
+* `.formData()` - (`Promise<FormData>`) - Returns a promise fulfilled with request's body as `FormData`. Not implemented by default.
+* `.json()` - (`Promise<any>`) - Returns a promise fulfilled with request's body parsed as `JSON`.
+* `.text()` - (`Promise<string>`) - Returns a promise fulfilled with request's body as `string`.
 * `.headers` - (`IncomingHttpHeaders`) - The response headers exactly as presented to the NodeJS Server with no modifications.
-* `.locals` - (`Object<string,any>`) - Object that gets passed in every step of the middleware chain. Application-level variables *should* be presented here.
-* `.replaceStream()` - (`function(stream:Readable):Readable`) - replaces the current stream with a new stream. Used by high-level middleware for the purpose of transforming data (eg: JSON-parsing).
+* `.locals` - (`Object<string,any>`) - Object that gets passed in every step of the middleware tree. Application-level variables *should* be presented here.
+* `.addDownstream()` - (`function(stream:Readable):Readable`) - adds a downstream to the current pipeline. Used by preprocessor middleware for the purpose of transforming data (eg: JSON-parsing) before reaching logic middleware.
 
 ### Example
 
 ````js
-async function onPostComment({req, res}) {
-  const content = (await req.stream[Symbol.asyncIterator]().next()).value;
+async function onPostComment({ request }) {
+  const content = await request.read();
   let comment;
   try {
     comment = new UserComment(content);
   } catch {
-    res.status = 400;
-    return 'end';
+    return 400;
   }
   try {
     await insertComment(comment);
   } catch {
-    res.status = 500;
-    return 'end';
+    return 500;
   }
-  res.status = 200;
-  res.stream.end({status: 'OK'});
-  return 'end';
+  return { status: 'OK' };
 }
 ````
 
 ### [HttpResponse.js](/lib/HttpResponse.js)
 *Class that provides the bare-minimum to bridge different protocols for client responses*
 
-* `.stream` - (`Writable`) - This is generally how you will return payloads in your custom middleware. It's recommended to use `.end(payload)` unless you are sending things in chunks with `.write()`. `.pipe()` is also supported. With no middleware, it accepts a `Buffer` or `string`. But if are using an Object Mode middleware like `contentWriter.js`, then you can pass an `Object` that can transform the object to JSON and set the appropriate headers automatically.
-* `.headers` - (`OutgoingHttpHeaders`) - The response headers exactly as presented to the NodeJS Server with no modifications.
-* `.status` - (`number`) - The response status
-* `.locals` - (`Object<string,any>`) - Object that gets passed in every step of the middleware chain. Application-level variables *should* be presented here.
-* `.replaceStream()` - (`function(stream:Writable):Writable`) - replaces the current stream with a new stream. Used by high-level middleware for the purpose of transforming data, or analyzing data to modify response headers. (eg: zlib compression, hashing, content-length).
+* `end(content:any) => HttpHandler.END` - Content to be sent to the client based on the Content Handler configured. The function will call `.stream.end` and return `HttpHandler.END`.
+* `headers` - (`OutgoingHttpHeaders`) - The response headers exactly as presented to the NodeJS Server with no modifications.
+* `content` - (`any`) - Content that will be sent to client.
+* `status` - (`number`) - The response status code
+* `setStatus(statusCode:number) => this` - Sets `.status` while returning `this` (`HttpResponse`). Will throw an `Error` if headers have already been sent.
+* `code(statusCode:number) => this` - Sets `.status` while returning `this` (`HttpResponse).
+* `async send(content:any)` - Similar to `end`, but asynchronous. Return when the client stream ends, confirming the data was sent, or throws an error on failure. Useful for ensuring client received the data.
+* `stream` - (`Writable`) - Used for interacting with the stream. With no custom middleware, it accepts a `Buffer` or `string`.
+* `pipeFrom(source:any)` -  Creates a pipeline starting with source. May insert `.pipeProcessors` into pipeline. Returns `HttpHandler.END`;
+* `pipelineFrom(source:any) => Promise<HttpHandler.END>` - Similar to `pipeFrom`, but asynchronous. Return when the client stream ends, confirming the data was sent, or throws an error on failure. Useful for ensuring client received the data.
+* `.finalizers` - Array of body processors that may read and transform `.body`, or simply analyze on `.body`.
 * `.canPushPath` - (`boolean`) - `true` on HTTP/2 streams that support push
 * `.pushPath` - (`function(path:string):Promise`) - Push a new HTTP/2 stream simulating a request for `path`
 
 ### Example
 
 ````js
-async function onGetIndexPage({res}) {
-  const indexHTML = await getIndexPage();
-  res.status = 200;
-  if (res.canPushPath) {
-    res.pushPath('/script.js');
-    res.pushPath('/styles.css');
+async function onGetIndexPage(transaction) {
+  if (transaction.canPushPath) {
+    transaction.pushPath('/script.js').catch(() => { /* Ignore push failure */ });
+    transaction.pushPath('/styles.css').catch(() => { /* Ignore push failure */ });;
   }
-  res.stream.end(indexHTML);
-  return 'end';
+  transaction.response.header['content-type'] = 'text/html';
+  return await getIndexPage();
 }
 ````
 
@@ -120,34 +130,38 @@ async function onGetIndexPage({res}) {
 
 #### MiddlewareFunction
 
-Middleware logic flows in a tree structure, allowing for `break`, `end`, or `continue`.
+Middleware logic flows in a tree structure, allowing for `continue`, `break`, or `end`.
 
-A `MiddlewareFunction` is a function that accepts a `MiddlewareFunctionParams` object structured as `{ res: HttpRequest, res: HttpResponse }`. The function must return a instruction as to proceed with the current step in tree-based logic. It maybe return any of these instructions with any of the values as a literal or a `Promise`:
+A `MiddlewareFunction` is a function that accepts a `MiddlewareFunctionParams` object structured as `{ res: HttpRequest, res: HttpResponse }`. The function can return a instruction with the step in the tree-based logic, status code, or content body to be handled. It maybe return any of these instructions with any of the values as a literal, a `Promise`, or `PromiseLike`:
 
-* End: Terminates the entire middleware chain. `values: 'end'`
-* Continue: Continues on the current chain to the next middleware, or moves to the next chain if there are no siblings left. `values: 'continue'|void|null|undefined`
-* Break: Breaks from the current middleware chain, and continues to the next chain. `values: 'break'`
+* `HttpHandler.CONTINUE`: Continues on the current branch to the next middleware, or moves to the next branch if there are no siblings left. `alias: true|void|null|undefined`
+* `HttpHandler.BREAK`: Breaks from the current middleware branch, and continues to the next branch. `alias: false`
+* `HttpHandler.END`: Terminates the entire middleware tree. `alias: 0`
+* `number`: Sets status code and then ends stream. `alias: res.code(statusCode).end()`
+* `Set|Map`: Add an inline middleware branch. 
+* `Array`: Explicitly passed to `HttpResponse.end()`. This is to support sending an `Array` object instead having it becoming an inline middleware branch.
+* `any`: Any other value returned would automatically be passed to `HttpResponse.end()` which, in turn, uses it's own content handlers (eg: `JSON`; `Readable`), and finally terminates the middleware tree.
 
-A `MiddlewareFilter` is a function that accepts a `MiddlewareFunctionParams` and returns a `MiddlewareContinueBoolean` or `Promise<MiddlewareContinueBoolean>` signaling whether to continue in the chain. `true` means to `continue`. `false` means to `break`. There is no support for `end` logic in a MiddlewareFilter.
+A `MiddlewareFilter` is a function that accepts a `MiddlewareFunctionParams` and returns a `boolean` or `Promise<boolean>` signaling whether to continue in the branch. `true` translates to `HttpHandler.CONTINUE`. `false` translates to `HttpHandler.BREAK`. There is no support for `HttpHandler.END` logic in a MiddlewareFilter by design.
 
-A `MiddlewareErrorHandler` is an `Object` with a `onError` property. `onError` is like a MiddlewareFunction, but includes an `err` item in its parameter object. When the handler is in an error state, it will bubble upwards while search for the next `MiddlewareErrorHandler`.
+A `MiddlewareErrorHandler` is an `Object` with a `onError` property. `onError` is like a MiddlewareFunction, but includes an `err` item in its parameter object. When the handler is in an error state, it will bubble upwards while searching for the next `MiddlewareErrorHandler`.
 
-`Middleware` can be a `MiddlewareFunction` or `MiddlewareFilter`. It can also a compatible response value of either: `'continue'|true|null|void|undefined`, `'break'|false`, `'end'`. The response can be the value or a `Promise`.
+`Middleware` can be a `MiddlewareFunction` or `MiddlewareFilter`. It can also a compatible response value of either: `HttpHandler.CONTINUE|true|null|void|undefined`, `HttpHandler.BREAK|false`, `HttpHandler.END|0`. The response can be the value or a `Promise`.
 
-To support branching, `Middleware` can also be a `Iterable<Middleware>` (include `Array` or `Set`), `Map<any, Middleware>` or `Object<string, Middleware>`. The `HttpHandler` will iterate through each and flow based on the `break`, `continue`, or `end` instruction return by each entry.
+To support branching, `Middleware` can also be a `Iterable<Middleware>` (eg: `Set`) or `Map<any, Middleware>`. The `HttpHandler` will iterate through each and flow based on the `break`, `continue`, or `end` instruction returned by each entry.
 
 ## Included Middleware
 
 ### Response Middleware
-* [SendHeaders](/middleware/SendHeadersMiddleware.js) - Automatically sends response headers before writing or ending a response stream
-* [ContentLength](/middleware/contentLengthMiddleware.js) - Sets `Content-Length` based on response stream content writes
-* [Hash](/middleware/HashMiddleware.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
-* [ContentEncoder](/middleware/ContentEncoderMiddleware.js) - Applies `Content-Encoding` to response based on `Accept-Encoding` request header
-* [ContentWriter](/middleware/ContentWriterMiddleware.js) - Adds `Object Mode` write support to response stream, including `string` and `JSON` support
+* [AuthHeaders](./middleware/AutoHeadersMiddleware.js) - Automatically sends response headers before writing or ending a response stream
+* [ContentLength](./middleware/contentLengthMiddleware.js) - Sets `Content-Length` based on response stream content writes
+* [Hash](./middleware/HashMiddleware.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
+* [ContentEncoder](./middleware/ContentEncoderMiddleware.js) - Applies `Content-Encoding` to response based on `Accept-Encoding` request header
+* [SendJson](./middleware/SendJsonMiddleware.js) - Adds response content processor that encodes objects and arrays to JSON string. Sets `application/json;charset=utf-8`, if content-type not set.
+* [SendString](./middleware/SendStringMiddleware.js) - Adds response content processor that encodes a string. Uses `charset` or uses `utf-8`, if not set.
 
 ### Request Middleware
 * [ContentDecoder](/middleware/ContentDecoderMiddleware.js) - Decodes `Content-Encoding` from request streams
-* [ContentReader](/middleware/ContentReaderMiddleware.js) - Adds `Object Mode` read support to request stream, including `string`, `JSON`, and `urlencoded` support. Can cache transformation into `req.local` for convenience.
 
 ### Logic Middleware
 * [Path](/middleware/PathMiddleware.js) - Creates logic filter based on URL pathname
@@ -160,30 +174,29 @@ To support branching, `Middleware` can also be a `Iterable<Middleware>` (include
 ### Examples:
 
 ````js
-HttpHandler.defaultInstance.preprocessors.push({
-  // This is an object with names for each entry
-  sendHeaders: new SendHeadersMiddleware(),
-  contentLength: new ContentLengthMiddleware(),
-  hash: (USE_HASH ? new HashMiddleware() : 'continue'),
-});
-HttpHandler.defaultInstance.middleware.add([
-  PathMiddleware.SUBPATH('/api'),
-  new CORSMiddleware(),
-  [MethodMiddleware.GET, myAPIGetFunctions],
-  [MethodMiddleware.POST, myAPIPostFunctions],
-]);
-HttpHandler.defaultInstance.middleware.add([
-  new PathMiddleware(/^\/(index.html?)?$/),
-  indexPageMiddleware,
-  'end',
-]);
-HttpHandler.defaultInstance.middleware.add(arrayToBePopulatedLater);
-HttpHandler.defaultInstance.middleware.add(({ res }) => { res.status = 404; return 'end'; });
+HttpHandler.defaultInstance.middleware.push(
+  new AutoHeadersMiddleware(),
+  new ContentLengthMiddleware(),
+  hash: (USE_HASH ? new HashMiddleware() : HttpHandler.CONTINUE),
+);
+HttpHandler.defaultInstance.middleware.push(
+  [
+    PathMiddleware.SUBPATH('/api'),
+    new CORSMiddleware(),
+    [MethodMiddleware.GET, myAPIGetFunctions],
+    [MethodMiddleware.POST, myAPIPostFunctions],
+  ],
+  [
+    new PathMiddleware(/^\/(index\.html?)?$/),
+    indexPageMiddleware
+  ],
+  arrayToBePopulatedLater,
+  404 // Equivalient of ({response}) => response.code(404).end()
+);
 HttpHandler.defaultInstance.errorHandlers.push({
-  onError({ res, err }) {
-    console.error(err);
-    res.status = 500;
-    return 'end';
+  onError({error}) {
+    console.error(error);
+    return 500;
   },
 });
 ````
@@ -192,17 +205,21 @@ HttpHandler.defaultInstance.errorHandlers.push({
 
 
 ````js
-async function checkToken({req, res}) {
-  const content = (await req.stream[Symbol.asyncIterator]().next()).value;
-  req.locals.content = content;
+async function checkToken({request, response, locals}) {
+  const content = await req.read();
   try {
     const decoded = await decodeJWT(content.token);
-    req.locals.jwt = decoded;
-    delete req.locals.content.token;
+    locals.jwt = decoded;
   } catch {
-    res.status = 401;
-    return 'end';
+    return 401;
   }
-  return 'continue'
+  /**
+   * Since we want the logic to continue to the next step,
+   * We can either allow the function  to implicitly return `undefined`
+   * or explicitly use any of the following:
+   *  * return undefined;
+   *  * return true;
+   *  * return HttpHandler.CONTINUE;
+   */
 }
 ````

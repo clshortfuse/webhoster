@@ -1,8 +1,5 @@
-/** @typedef {import('../lib').HttpRequest} HttpRequest */
-/** @typedef {import('../types').IMiddleware} IMiddleware */
+/** @typedef {import('../types').HttpTransaction} HttpTransaction */
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
-/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 /** @typedef {import('../types').RequestMethod} RequestMethod */
 
 /** @typedef {RegExp|RequestMethod} MethodEntry */
@@ -12,7 +9,6 @@
  * @prop {MethodEntry|MethodEntry[]} method
  */
 
-/** @implements {IMiddleware} */
 export default class MethodMiddleware {
   /** @param {MethodMiddlewareOptions|MethodEntry|MethodEntry[]} options */
   constructor(options) {
@@ -25,20 +21,8 @@ export default class MethodMiddleware {
     }
   }
 
-  /** @type {Map<RequestMethod, MethodMiddleware>} */
+  /** @type {Map<MethodEntry, MethodMiddleware>} */
   static cache = new Map();
-
-  /**
-   * @param {RequestMethod} name
-   * @return {MethodMiddleware}
-   */
-  static byMethod(name) {
-    let m = MethodMiddleware.cache.get(name);
-    if (m) return m;
-    m = new MethodMiddleware(name);
-    MethodMiddleware.cache.set(name, m);
-    return m;
-  }
 
   /**
    * @param {RequestMethod} method
@@ -52,34 +36,43 @@ export default class MethodMiddleware {
     return input.test(method) === true;
   }
 
-  /**
-   * @param {MiddlewareFunctionParams} params
-   * @return {MiddlewareFunctionResult}
-   */
-  execute({ req }) {
+  /** @type {MiddlewareFunction} */
+  execute({ request }) {
     for (let i = 0; i < this.method.length; i++) {
-      if (MethodMiddleware.test(req.method, this.method[i])) {
-        return 'continue';
+      if (MethodMiddleware.test(request.method, this.method[i])) {
+        return true;
       }
     }
-    return 'break';
+    return false;
   }
 
-  static get CONNECT() { return MethodMiddleware.byMethod('CONNECT'); }
+  /** @type {MiddlewareFunction} */
+  static CONNECT({ request }) { return request.method === 'CONNECT'; }
 
-  static get DELETE() { return MethodMiddleware.byMethod('DELETE'); }
+  /** @type {MiddlewareFunction} */
+  static DELETE({ request }) { return request.method === 'DELETE'; }
 
-  static get GET() { return MethodMiddleware.byMethod('GET'); }
+  /** @type {MiddlewareFunction} */
+  static HEADORGET({ request }) { return request.method === 'HEAD' || request.method === 'GET'; }
 
-  static get OPTIONS() { return MethodMiddleware.byMethod('OPTIONS'); }
+  /** @type {MiddlewareFunction} */
+  static GET({ request }) { return request.method === 'GET'; }
 
-  static get HEAD() { return MethodMiddleware.byMethod('HEAD'); }
+  /** @type {MiddlewareFunction} */
+  static OPTIONS({ request }) { return request.method === 'OPTIONS'; }
 
-  static get PATCH() { return MethodMiddleware.byMethod('PATCH'); }
+  /** @type {MiddlewareFunction} */
+  static HEAD({ request }) { return request.method === 'HEAD'; }
 
-  static get POST() { return MethodMiddleware.byMethod('POST'); }
+  /** @type {MiddlewareFunction} */
+  static PATCH({ request }) { return request.method === 'PATCH'; }
 
-  static get PUT() { return MethodMiddleware.byMethod('PUT'); }
+  /** @type {MiddlewareFunction} */
+  static POST({ request }) { return request.method === 'POST'; }
 
-  static get TRACE() { return MethodMiddleware.byMethod('TRACE'); }
+  /** @type {MiddlewareFunction} */
+  static PUT({ request }) { return request.method === 'PUT'; }
+
+  /** @type {MiddlewareFunction} */
+  static TRACE({ request }) { return request.method === 'TRACE'; }
 }

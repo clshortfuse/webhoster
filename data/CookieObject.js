@@ -25,6 +25,7 @@ export default class CookieObject {
   static parse(cookieString) {
     /** @type {Partial<CookieDetails>} */
     const options = {};
+    // eslint-disable-next-line github/array-foreach
     cookieString.split(';').forEach((pair, index) => {
       const indexOfEquals = pair.indexOf('=');
       let key;
@@ -33,13 +34,13 @@ export default class CookieObject {
         key = '';
         value = pair.trim();
       } else {
-        key = pair.substr(0, indexOfEquals).trim();
-        value = pair.substr(indexOfEquals + 1).trim();
+        key = pair.slice(0, indexOfEquals).trim();
+        value = pair.slice(indexOfEquals + 1).trim();
       }
       const firstQuote = value.indexOf('"');
       const lastQuote = value.lastIndexOf('"');
       if (firstQuote !== -1 && lastQuote !== -1) {
-        value = value.substring(firstQuote + 1, lastQuote);
+        value = value.slice(firstQuote + 1, lastQuote);
       }
       if (index === 0) {
         options.name = key;
@@ -53,7 +54,7 @@ export default class CookieObject {
           options.expires = new Date(value);
           return;
         case 'max-age':
-          options.maxAge = parseInt(value, 10);
+          options.maxAge = Number.parseInt(value, 10);
           return;
         case 'domain':
           options.domain = value;

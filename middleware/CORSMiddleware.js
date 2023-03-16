@@ -1,7 +1,5 @@
 /** @typedef {import('../types').IMiddleware} IMiddleware */
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
-/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 /** @typedef {import('../types').RequestMethod} RequestMethod */
 
 /**
@@ -15,14 +13,13 @@
  * Indicates which methods are supported by the response’s URL for the purposes of the CORS protocol.
  * @prop {string[]} [allowHeaders]
  * Indicates which headers are supported by the response’s URL for the purposes of the CORS protocol.
- * @prop {number} [maxAge]
+ * @prop {number} [maxAge=5]
  * Indicates the number of seconds (5 by default) the information provided by the
  * `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` headers can be cached.
  * @prop {string[]} [exposeHeaders]
  * Indicates which headers can be exposed as part of the response by listing their names.
  */
 
-/** @implements {IMiddleware} */
 export default class CORSMiddleware {
   /** @param {CORSMiddlewareOptions} [options] */
   constructor(options = {}) {
@@ -34,66 +31,67 @@ export default class CORSMiddleware {
     this.exposeHeaders = options.exposeHeaders;
   }
 
-  /**
-   * @param {MiddlewareFunctionParams} params
-   * @return {MiddlewareFunctionResult}
-   */
-  execute({ req, res }) {
-    if (('origin' in req.headers) === false) {
-    // not CORS
-      return 'continue';
-    }
-    if (!this.allowOrigin) {
-    // Unspecified default of '*'
-      res.headers['access-control-allow-origin'] = '*';
-    } else {
-      this.allowOrigin.some((origin) => {
-        if (origin === '*') {
-          res.headers['access-control-allow-origin'] = '*';
-          return true;
-        }
-        if (typeof origin === 'string') {
-          if (req.headers.origin?.toLowerCase() === origin.toLowerCase()) {
-            res.headers['access-control-allow-origin'] = req.headers.origin;
-            return true;
-          }
-          return false;
-        }
-        if (origin.test(req.headers.origin)) {
-          res.headers['access-control-allow-origin'] = req.headers.origin;
-          return true;
-        }
-        return false;
-      });
-    }
-    if (this.allowCredentials) {
-      res.headers['access-control-allow-credentials'] = 'true';
-    }
-    if (req.method === 'OPTIONS') {
-      if (this.allowMethods) {
-        res.headers['access-control-allow-methods'] = this.allowMethods.join(',');
-      } else {
-        res.headers['access-control-allow-methods'] = [
-          'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'TRACE', 'PATCH',
-        ].join(',');
-      }
-      if (this.allowHeaders) {
-        res.headers['access-control-allow-headers'] = this.allowHeaders.join(',');
-      } else {
-        res.headers['access-control-allow-headers'] = req.headers['access-control-request-headers'];
-      }
-      if (this.maxAge != null) {
-        res.headers['access-control-max-age'] = this.maxAge.toString(10);
-      }
-      // 200 instead of 204 for compatibility
-      res.status = 200;
-      res.stream.end('OK');
-      return 'end';
+  static OK_BUFFER = Buffer.from('OK', 'ascii');
+
+  static ACCESS_CONTROL_ALLOW_HEADERS_ALL = [
+    'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'TRACE', 'PATCH',
+  ].join(',');
+
+  /** @type {MiddlewareFunction} */
+  execute({ request, response }) {
+    if (('origin' in request.headers) === false) {
+      // not CORS
+      return true; // CONTINUE
     }
 
-    if (this.exposeHeaders) {
-      res.headers['access-control-expose-headers'] = this.exposeHeaders.join(',');
+    // CORS Request
+    if (!this.allowOrigin) {
+      // Unspecified default of '*'
+      response.headers['access-control-allow-origin'] = '*';
+    } else {
+      for (const origin of this.allowOrigin) {
+        if (origin === '*') {
+          response.headers['access-control-allow-origin'] = '*';
+          break;
+        }
+        if (typeof origin === 'string') {
+          if (request.headers.origin?.toLowerCase() === origin.toLowerCase()) {
+            response.headers['access-control-allow-origin'] = request.headers.origin;
+            break;
+          }
+        } else if (origin.test(request.headers.origin)) {
+          response.headers['access-control-allow-origin'] = request.headers.origin;
+          break;
+        }
+      }
     }
-    return 'continue';
+
+    if (this.allowCredentials) {
+      response.headers['access-control-allow-credentials'] = 'true';
+    }
+
+    if (request.method === 'OPTIONS') {
+      response.headers['access-control-allow-methods'] = this.allowMethods
+        ? this.allowMethods.join(',')
+        : CORSMiddleware.ACCESS_CONTROL_ALLOW_HEADERS_ALL;
+      response.headers['access-control-allow-headers'] = this.allowHeaders
+        ? this.allowHeaders.join(',')
+        : request.headers['access-control-request-headers'];
+      if (this.maxAge != null) {
+        response.headers['access-control-max-age'] = this.maxAge.toString(10);
+      }
+      // 200 instead of 204 for compatibility
+      // Manual handling for faster response
+      response.status = 200;
+      response.headers['content-length'] = '0';
+      response.sendHeaders(true, true);
+      return 0; // END
+    }
+
+    // Non-CORS-preflight request
+    if (this.exposeHeaders) {
+      response.headers['access-control-expose-headers'] = this.exposeHeaders.join(',');
+    }
+    return true; // CONTINUE
   }
 }

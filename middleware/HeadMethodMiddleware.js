@@ -1,29 +1,32 @@
-import { PassThrough } from 'stream';
+/** @typedef {import('../types/index.js').HttpTransaction} HttpTransaction */
+/** @typedef {import('../types/index.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../types/index.js').ResponseFinalizer} ResponseFinalizer */
 
-/** @typedef {import('../types').IMiddleware} IMiddleware */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
-/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
+import { Transform } from 'node:stream';
 
-/** @implements {IMiddleware} */
 export default class HeadMethodMiddleware {
   constructor() {
-    this.execute = HeadMethodMiddleware.execute.bind(this);
+    this.execute = HeadMethodMiddleware.Execute.bind(this);
   }
 
-  /**
-   * @param {MiddlewareFunctionParams} params
-   * @return {MiddlewareFunctionResult}
-   */
-  static execute({ req, res }) {
-    if (req.method !== 'HEAD') {
-      return 'continue';
+  /** @type {ConstructorParameters<typeof Transform>[0]} */
+  static DEFAULT_TRANSFORM_OPTIONS = {
+    objectMode: true,
+    transform(chunk, encoding, callback) { callback(); },
+  };
+
+  /** @type {ResponseFinalizer} */
+  static FinalizeResponse(response) {
+    if (response.isStreaming) {
+      response.pipes.push(new Transform(HeadMethodMiddleware.DEFAULT_TRANSFORM_OPTIONS));
+      return;
     }
-    const newWritable = new PassThrough({});
-    const destination = res.replaceStream(newWritable);
-    newWritable.on('end', () => {
-      destination.end();
-    });
-    return 'continue';
+    response.body = null;
+  }
+
+  /** @type {MiddlewareFunction} */
+  static Execute({ request, response }) {
+    if (request.method !== 'HEAD') return;
+    response.finalizers.push(HeadMethodMiddleware.FinalizeResponse);
   }
 }

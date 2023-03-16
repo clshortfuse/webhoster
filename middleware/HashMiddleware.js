@@ -1,81 +1,109 @@
-import crypto from 'crypto';
-import { Transform } from 'stream';
+import { createHash } from 'node:crypto';
+import { Transform } from 'node:stream';
 
-/** @typedef {import('../types').IMiddleware} IMiddleware */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
-/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
+/** @typedef {import('node:crypto').BinaryToTextEncoding} BinaryToTextEncoding */
+/** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
+/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
+/** @typedef {import('../types/index.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../types/index.js').ResponseFinalizer} ResponseFinalizer */
 
 const DEFAULT_ALGORITHM = 'sha1';
-/** @type {crypto.HexBase64Latin1Encoding} */
+/** @type {BinaryToTextEncoding} */
 const DEFAULT_DIGEST = 'base64';
 
 /**
  * @typedef {Object} HashMiddlewareOptions
  * @prop {'md5'|'sha1'|'sha256'|'sha512'} [algorithm=DEFAULT_ALGORITHM]
- * @prop {crypto.HexBase64Latin1Encoding} [digest=DEFAULT_DIGEST]
+ * @prop {BinaryToTextEncoding} [digest=DEFAULT_DIGEST]
  */
 
-/** @implements {IMiddleware} */
 export default class HashMiddleware {
   /** @param {HashMiddlewareOptions} options */
   constructor(options = {}) {
     this.algorithm = options.algorithm || DEFAULT_ALGORITHM;
     this.digest = options.digest || DEFAULT_DIGEST;
+    this.finalizeResponse = this.finalizeResponse.bind(this);
   }
 
   /**
-   * @param {MiddlewareFunctionParams} params
-   * @return {MiddlewareFunctionResult}
+   * @param {HttpResponse} response
+   * @return {void}
    */
-  execute({ res }) {
+  addTransformStream(response) {
+    if (response.headers.etag != null || response.headers.digest != null) return;
+
     const { algorithm, digest } = this;
     let hasData = false;
     let length = 0;
     let abort = false;
-    const hashStream = crypto.createHash(algorithm);
-    const newWritable = new Transform({
+    const hashStream = createHash(algorithm);
+    response.pipes.push(new Transform({
+      objectMode: true,
       transform(chunk, encoding, callback) {
         length += chunk.length;
         hasData = true;
-        if (!abort && res.headersSent) {
-          abort = true;
-          hashStream.destroy();
+
+        if (!abort) {
+          if (response.headersSent) {
+            abort = true;
+            hashStream.destroy();
+          } else {
+            // Manually pipe
+            const isSync = hashStream.write(chunk, (err) => {
+              if (!isSync) {
+                callback(err, chunk);
+              }
+            });
+            if (!isSync) return;
+          }
         }
-        if (abort) {
-          callback(null, chunk);
-          return;
-        }
-        // Manually pipe
-        const needsDrain = !hashStream.write(chunk);
-        if (needsDrain) {
-          hashStream.once('drain', () => {
-            callback(null, chunk);
-          });
-        } else {
-          callback(null, chunk);
-        }
+        callback(null, chunk);
       },
-      flush(callback) {
-        if (!abort && hasData && res.status !== 206 && !res.headersSent) {
+      final(callback) {
+        if (!abort && hasData && response.status !== 206 && !response.headersSent) {
           const hash = hashStream.digest(digest);
           // https://tools.ietf.org/html/rfc7232#section-2.3
-          if (res.headers.etag == null) {
-            res.headers.etag = `${algorithm === 'md5' ? 'W/' : ''}"${length.toString(16)}-${hash}"`;
+          if (response.headers.etag == null) {
+            response.headers.etag = `${algorithm === 'md5' ? 'W/' : ''}"${length.toString(16)}-${hash}"`;
           }
           if (digest === 'base64') {
-            res.headers.digest = `${algorithm}=${hash}`;
+            response.headers.digest = `${algorithm}=${hash}`;
             if ((algorithm === 'md5')) {
-              res.headers['content-md5'] = hash;
+              response.headers['content-md5'] = hash;
             }
           }
         }
         callback();
       },
-    });
+    }));
+  }
 
-    const destination = res.replaceStream(newWritable);
-    newWritable.pipe(destination);
-    return 'continue';
+  /** @type {ResponseFinalizer} */
+  finalizeResponse(response) {
+    if (response.status === 206 || response.body == null) return;
+    if (response.isStreaming) {
+      this.addTransformStream(response);
+      return;
+    }
+    if (!Buffer.isBuffer(response.body) || response.body.byteLength === 0) return;
+
+    const { algorithm, digest } = this;
+    const hash = createHash(algorithm).update(response.body).digest(digest);
+
+    // https://tools.ietf.org/html/rfc7232#section-2.3
+    if (response.headers.etag == null) {
+      response.headers.etag = `${algorithm === 'md5' ? 'W/' : ''}"${response.body.byteLength.toString(16)}-${hash}"`;
+    }
+    if (digest === 'base64') {
+      response.headers.digest = `${algorithm}=${hash}`;
+      if ((algorithm === 'md5')) {
+        response.headers['content-md5'] = hash;
+      }
+    }
+  }
+
+  /** @type {MiddlewareFunction} */
+  execute({ response }) {
+    response.finalizers.push(this.finalizeResponse);
   }
 }

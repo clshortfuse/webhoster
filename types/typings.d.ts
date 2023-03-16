@@ -1,15 +1,14 @@
 import {
   IMiddleware,
+  MiddlewareContent,
   MiddlewareFunction,
-  MiddlewareErrorHandler,
-  MiddlewareContinueBoolean,
+  MiddlewareFunctionResultType,
 } from './index.js';
 
-export type Middleware = MiddlewareFunction
+export type Middleware =
   | IMiddleware
-  | MiddlewareErrorHandler
-  | Iterable<Middleware>
-  | Map<any, Middleware>
-  | {[key:string]: Middleware, onError?: undefined}
-  | MiddlewareContinueBoolean
-  | 'end'|'break'|'continue'|null|undefined|void;
+  | MiddlewareFunction
+  | Middleware[] 
+  | MiddlewareContent
+  | Set<Middleware>
+  | MiddlewareFunctionResultType

@@ -1,5 +1,16 @@
 {
-  "name": "webhoster",
+  "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
+  "devDependencies": {
+    "@fidm/x509": "^1.2.1",
+    "ava": "^4.1.0",
+    "c8": "^7.11.0"
+  },
+  "engines": {
+    "node": ">=14.15 || >=v16.13"
+  },
+  "exports": {
+    "./*": "./*"
+  },
   "keywords": [
     "http",
     "http2",
@@ -11,35 +22,18 @@
     "cors",
     "gzip"
   ],
-  "version": "0.1.1",
-  "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
-  "author": "clshortfuse@gmail.com",
-  "homepage": "https://github.com/clshortfuse/webhoster",
-  "repository": "github:clshortfuse/webhoster",
   "license": "MIT",
-  "main": "index.cjs",
-  "exports": {
-    "./": "./"
+  "name": "webhoster",
+  "scripts": {
+    "pretestallsync": "rimraf coverage",
+    "testallsync": "scripts/test-all-sync.sh",
+    "posttestallsync": "c8 report",
+    "pretestall": "rimraf coverage",
+    "testall": "scripts/test-all.sh",
+    "posttestall": "c8 report",
+    "test": "c8 ava",
+    "debug-test": "ava --serial"
   },
   "type": "module",
-  "engines": {
-    "node": ">=14"
-  },
-  "scripts": {
-    "prepublishOnly": "rollup -c",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "devDependencies": {
-    "@fidm/x509": "^1.2.1",
-    "@types/node": "^14.0.14",
-    "@types/tedious": "^4.0.1",
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.3.1",
-    "eslint-config-airbnb-base": "^14.2.0",
-    "eslint-plugin-babel": "^5.3.0",
-    "eslint-plugin-import": "^2.22.0",
-    "eslint-plugin-jsdoc": "^25.4.3",
-    "eslint-plugin-node": "^11.1.0",
-    "rollup": "^2.18.1"
-  }
+  "version": "0.2.0"
 }

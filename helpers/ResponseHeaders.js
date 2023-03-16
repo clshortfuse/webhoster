@@ -2,7 +2,7 @@ import CookieObject from '../data/CookieObject.js';
 
 import HeadersHandler from './HeadersParser.js';
 
-/** @typedef {import('../types').HttpResponse} HttpResponse */
+/** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
 /** @typedef {import('../types').CookieDetails} CookieDetails */
 
 /** @type {(keyof CookieDetails)[]} */
@@ -18,10 +18,23 @@ const COOKIE_DETAIL_KEYS = [
   'sameSite',
 ];
 
+/** @type {WeakMap<HttpResponse, ResponseHeaders>} */
+const instanceCache = new WeakMap();
+
 export default class ResponseHeaders extends HeadersHandler {
   /** @param {HttpResponse} res */
+  // @ts-ignore Cached constructor
   constructor(res) {
+    const instance = instanceCache.get(res);
+    if (instance) return instance;
     super(res.headers);
+    instanceCache.set(res, this);
+  }
+
+  /** @param {HttpResponse} res */
+  static cookies(res) {
+    const instance = new ResponseHeaders(res);
+    return instance.cookies;
   }
 
   /** @type {CookieObject[]} */
@@ -94,9 +107,9 @@ export default class ResponseHeaders extends HeadersHandler {
       case 'utf-8':
       case 'utf8':
         return 'utf-8';
-      default:
       case 'base64':
       case 'hex':
+      default:
         return /** @type {BufferEncoding} */ (charset);
     }
   }
@@ -118,9 +131,9 @@ export default class ResponseHeaders extends HeadersHandler {
       case 'utf8':
         this.charset = 'utf-8';
         break;
-      default:
       case 'base64':
       case 'hex':
+      default:
         this.charset = bufferEncoding;
     }
   }
@@ -205,7 +218,7 @@ export default class ResponseHeaders extends HeadersHandler {
                 return details[key] === cookieObject[key];
             }
           }))
-          .sort((a, b) => (b?.path?.length ?? 0 - a?.path?.length ?? 0));
+          .sort((a, b) => ((b?.path?.length ?? 0) - (a?.path?.length ?? 0)));
       },
       /**
        * @param {string|CookieDetails} cookie
@@ -221,10 +234,10 @@ export default class ResponseHeaders extends HeadersHandler {
           cookieObject = new Proxy(new CookieObject(details), instance.#cookieObjectProxyHandler);
           instance.cookieEntries.push(cookieObject);
         } else {
-          COOKIE_DETAIL_KEYS.forEach((key) => {
+          for (const key of COOKIE_DETAIL_KEYS) {
             // @ts-ignore Coerce
             cookieObject[key] = details[key];
-          });
+          }
         }
         return cookieObject;
       },
@@ -235,9 +248,9 @@ export default class ResponseHeaders extends HeadersHandler {
       remove(partial) {
         const items = this.getAll(partial);
         const count = items.length;
-        items.forEach((item) => {
+        for (const item of items) {
           instance.cookieEntries.splice(instance.cookieEntries.indexOf(item), 1);
-        });
+        }
         return count;
       },
       /**
@@ -262,13 +275,11 @@ export default class ResponseHeaders extends HeadersHandler {
        */
       expireAll(partial) {
         const items = this.getAll(partial);
-        items.forEach((item) => {
-          /* eslint-disable no-param-reassign */
+        for (const item of items) {
           item.expires = null;
           item.maxAge = 0;
           item.value = '';
-          /* eslint-enable no-param-reassign */
-        });
+        }
         return items;
       },
     };
@@ -296,7 +307,7 @@ export default class ResponseHeaders extends HeadersHandler {
           if (arrayProp === 'length') {
             return instance.headers['set-cookie'].length;
           }
-          if (Number.isNaN(parseInt(arrayProp, 10))) {
+          if (Number.isNaN(Number.parseInt(arrayProp, 10))) {
             return Reflect.get(arrayTarget, arrayProp, receiver);
           }
           const entry = instance.headers['set-cookie'][arrayProp];

@@ -23,10 +23,10 @@ export default class HeadersParser {
    * The `charset` direct of `Content-Type`.
    * The character encoding standard.
    * (Always lowercase)
-   * @return {string} */
+    @return {string} */
   get charset() {
     let value = null;
-    // eslint-disable-next-line no-unused-expressions
+
     this.contentType?.split(';').some((directive) => {
       const parameters = directive.split('=');
       if (parameters[0].trim().toLowerCase() !== 'charset') {
@@ -36,7 +36,7 @@ export default class HeadersParser {
       const firstQuote = value.indexOf('"');
       const lastQuote = value.lastIndexOf('"');
       if (firstQuote !== -1 && lastQuote !== -1) {
-        value = value.substring(firstQuote + 1, lastQuote);
+        value = value.slice(firstQuote + 1, lastQuote);
       }
       return true;
     });
@@ -46,7 +46,7 @@ export default class HeadersParser {
   /** @return {string} */
   get boundary() {
     let value = null;
-    // eslint-disable-next-line no-unused-expressions
+
     this.contentType?.split(';').some((directive) => {
       const parameters = directive.split('=');
       if (parameters[0].trim().toLowerCase() !== 'boundary') {
@@ -56,16 +56,15 @@ export default class HeadersParser {
       const firstQuote = value.indexOf('"');
       const lastQuote = value.lastIndexOf('"');
       if (firstQuote !== -1 && lastQuote !== -1) {
-        value = value.substring(firstQuote + 1, lastQuote);
+        value = value.slice(firstQuote + 1, lastQuote);
       }
       return true;
     });
     return value;
   }
 
-
-  /** @return {number} */
+  /** @return {?number} */
   get contentLength() {
-    return parseInt(this.headers['content-length'], 10) || null;
+    return Number.parseInt(this.headers['content-length'], 10) || null;
   }
 }

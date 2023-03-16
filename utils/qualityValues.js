@@ -20,7 +20,7 @@ export function parseQualityValues(input) {
             const trimmedSpec = specifier?.trim();
             const trimmedSValue = sValue?.trim();
             if (trimmedSpec === 'q') {
-              const parsedQ = parseFloat(trimmedSValue);
+              const parsedQ = Number.parseFloat(trimmedSValue);
               return { q: Number.isNaN(parsedQ) ? 1 : parsedQ };
             }
             return { [trimmedSpec]: trimmedSValue };

@@ -1,10 +1,9 @@
-import { PassThrough, Transform } from 'stream';
-import { createBrotliDecompress, createGunzip, createInflate } from 'zlib';
+import { Transform } from 'node:stream';
+import {
+  BrotliDecompress, Gunzip, Inflate,
+} from 'node:zlib';
 
-/** @typedef {import('../types').IMiddleware} IMiddleware */
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').MiddlewareFunctionParams} MiddlewareFunctionParams */
-/** @typedef {import('../types').MiddlewareFunctionResult} MiddlewareFunctionResult */
 
 /**
  * @typedef ContentDecoderMiddlewareOptions
@@ -12,10 +11,11 @@ import { createBrotliDecompress, createGunzip, createInflate } from 'zlib';
  * @prop {boolean} [respondNotAcceptable=false]
  */
 
+const CONTINUE = true;
+
 /**
  * Implements `Accept-Encoding`
  * https://tools.ietf.org/html/rfc7231#section-5.3.4
- * @implements {IMiddleware}
  */
 export default class ContentDecoderMiddleware {
   /** @param {ContentDecoderMiddlewareOptions} [options] */
@@ -24,68 +24,114 @@ export default class ContentDecoderMiddleware {
     this.respondNotAcceptable = options.respondNotAcceptable === true;
   }
 
-  /**
-   * @param {!MiddlewareFunctionParams} params
-   * @return {MiddlewareFunctionResult}
-   */
-  execute({ req, res }) {
-    switch (req.method) {
+  /** @type {MiddlewareFunction} */
+  execute({ request, response }) {
+    switch (request.method) {
       case 'HEAD':
       case 'GET':
-        return 'continue';
+        return CONTINUE;
       default:
     }
 
-    res.headers['accept-encoding'] = 'gzip, deflate, br';
-    const contentEncoding = (req.headers['content-encoding'] ?? '').trim().toLowerCase();
+    // TODO: Use transforms
 
-    switch (contentEncoding) {
+    response.headers['accept-encoding'] = 'gzip, deflate, br';
+    const contentEncoding = request.headers['content-encoding'];
+    if (!contentEncoding) return CONTINUE;
+
+    switch (contentEncoding.trim().toLowerCase()) {
       case '':
       case 'identity':
-        return 'continue';
+        return CONTINUE;
       case 'gzip':
       case 'br':
       case 'deflate':
         break;
       default:
         if (this.respondNotAcceptable) {
-          res.status = 406;
-          return 'end';
+          return 406;
         }
-        return 'continue';
+        return CONTINUE;
     }
 
-    const source = req.stream;
+    /** @type {import('stream').Readable} */
+    let inputStream;
+
+    // Don't built gZipStream until a read request is made
+    // By default, newDownstream <= inputStream
+    // On first read, newDownstream <= gZipStream <= inputStream
+    // Read request is intercepted by newDownstream
+
+    /** @type {import("zlib").Gunzip} */
+    let gzipStream;
     let initialized = false;
-    const { chunkSize } = this;
-    const newReadable = new PassThrough({
-      read(...args) {
+
+    const gzipOptions = { chunkSize: this.chunkSize };
+    const newDownstream = new Transform({
+
+      read: (...args) => {
         if (!initialized) {
-        /** @type {import("zlib").Gzip} */
-          let gzipStream;
+          /** @type {import("zlib").Gzip} */
           switch (contentEncoding) {
             case 'deflate':
-              gzipStream = createInflate({ chunkSize });
+              gzipStream = new Inflate(gzipOptions);
               break;
             case 'gzip':
-              gzipStream = createGunzip({ chunkSize });
+              gzipStream = new Gunzip(gzipOptions);
               break;
             case 'br':
-              gzipStream = createBrotliDecompress({ chunkSize });
+              gzipStream = new BrotliDecompress(gzipOptions);
               break;
             default:
               throw new Error('UNKNOWN_ENCODING');
           }
-          source.pipe(gzipStream).pipe(this);
+          // From newDownstream <= inputStream
+          // To newDownstream <= gzipStream < =inputStream
+
+          // Forward errors
+          gzipStream.on('error', (err) => inputStream.emit('error', err));
+          gzipStream.on('data', (chunk) => newDownstream.push(chunk));
+
+          inputStream.on('end', () => gzipStream.end());
+          gzipStream.on('end', () => {
+            newDownstream.push(null);
+            if (newDownstream.readable) {
+              newDownstream.end();
+            }
+          });
+
+          if (inputStream.pause()) inputStream.resume();
           initialized = true;
         }
-        if (source.isPaused()) source.resume();
-        // eslint-disable-next-line no-underscore-dangle
+
         Transform.prototype._read.call(this, ...args);
       },
+      transform: (chunk, chunkEncoding, callback) => {
+        gzipStream.write(chunk, (err) => {
+          if (err) console.error(err);
+          callback(err);
+        });
+      },
+      flush: (callback) => {
+        if (gzipStream) {
+          gzipStream.flush(() => {
+            callback();
+          });
+        }
+      },
+      final: (callback) => {
+        if (gzipStream) {
+          gzipStream.end();
+          gzipStream.flush(() => {
+            callback();
+          });
+        }
+      },
     });
-    source.pause();
-    req.replaceStream(newReadable);
-    return 'continue';
+
+    newDownstream.tag = 'ContentDecoder';
+    inputStream = request.addDownstream(newDownstream, { autoPause: true });
+
+    return CONTINUE;
   }
 }

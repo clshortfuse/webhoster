@@ -7,10 +7,10 @@ export default class CaseInsensitiveObject {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const instance = this;
     const proxy = new Proxy(instance, CaseInsensitiveObject.defaultProxyHandler);
-    Object.entries(object).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(object)) {
       // @ts-ignore Coerce
       this[key] = value;
-    });
+    }
     return proxy;
   }
 }
@@ -30,4 +30,3 @@ CaseInsensitiveObject.defaultProxyHandler = {
     return Reflect.deleteProperty(target, typeof p === 'string' ? p.toLowerCase() : p);
   },
 };
-

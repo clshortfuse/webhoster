@@ -2,3 +2,4 @@ node_modules/*
 certificates/*
 *.cjs
 **/.DS_Store
+coverage/*
