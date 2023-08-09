@@ -20,14 +20,16 @@ const SEED = Math.floor(Math.random() * (2 ** 4));
 
 /** @yields {Buffer} */
 function* binaryGenerator() {
-  for (let i = 0; i < CHUNK_COUNT; i++) {
-    const num = (SEED + i);
+  for (let index = 0; index < CHUNK_COUNT; index++) {
+    const number_ = (SEED + index);
+    /* eslint-disable no-bitwise */
     yield createHash('sha256').update(Buffer.from([
-      (num >> 24) & 255,
-      (num >> 16) & 255,
-      (num >> 8) & 255,
-      num & 255,
+      (number_ >> 24) & 255,
+      (number_ >> 16) & 255,
+      (number_ >> 8) & 255,
+      number_ & 255,
     ])).digest();
+    /* eslint-enable no-bitwise */
   }
 }
 
