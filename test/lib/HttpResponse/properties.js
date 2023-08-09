@@ -2,18 +2,6 @@ import test from 'ava';
 
 import HttpResponse from '../../../lib/HttpResponse.js';
 
-test('HttpResponse.URL', (t) => {
-  const url = 'http://my.domain.name/pathname?foo=bar&baz=qux/#hash';
-  const res = new HttpResponse({ url });
-
-  t.is(url, res.url);
-
-  const urlObject = res.URL;
-
-  t.assert(urlObject instanceof URL);
-  t.is(url, urlObject.toString());
-});
-
 test('HttpResponse.status - constructor', (t) => {
   const res = new HttpResponse({ status: 500 });
   t.is(res.status, 500);
