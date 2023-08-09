@@ -1,79 +1,94 @@
 {
-  "extends": ["airbnb-base", "plugin:node/recommended"],
-  "plugins": ["jsdoc", "babel"],
   "env": {
-    "node": true
+    "es2021": true
   },
-  "parser": "babel-eslint",
+  "extends": [
+    "airbnb-base",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jsdoc/recommended-typescript-flavor-error",
+    "plugin:n/recommended",
+    "plugin:unicorn/recommended",
+    "plugin:import/recommended"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.cjs"
+      ],
+      "rules": {
+        "@typescript-eslint/no-var-requires": 0,
+        "import/no-nodejs-modules": 0
+      }
+    }
+  ],
+  "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": 2020,
-    "sourceType": "module",
     "ecmaFeatures": {
       "impliedStrict": true
-    }
+    },
+    "ecmaVersion": 2019,
+    "project": "./jsconfig.json",
+    "sourceType": "module"
   },
+  "plugins": [
+    "@typescript-eslint",
+    "canonical",
+    "jsdoc",
+    "n",
+    "unicorn",
+    "import"
+  ],
+  "root": true,
   "rules": {
-    "import/extensions": ["error", "always", {
-      "js": "always",
-      "mjs": "always"
-    }],
-    "import/no-useless-path-segments": ["error", {
-      "noUselessIndex": false
-    }],
+    "import/extensions": [
+      "error",
+      "always",
+      {
+        "js": "always",
+        "mjs": "never"
+      }
+    ],
+    "import/no-extraneous-dependencies": "off",
     "import/prefer-default-export": "off",
-    "import/no-anonymous-default-export": ["error"],
-    "prefer-destructuring": ["error", {
-      "VariableDeclarator": {
-        "array": false,
-        "object": true
-      },
-      "AssignmentExpression": {
-        "array": false,
-        "object": true
+    "jsdoc/no-defaults": "off",
+    "jsdoc/require-param-description": "off",
+    "jsdoc/require-property-description": "off",
+    "jsdoc/require-returns": "off",
+    "jsdoc/require-returns-description": "off",
+    "no-continue": "off",
+    "no-restricted-syntax": "off",
+    "no-return-await": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/no-null": "off",
+    "unicorn/no-useless-switch-case": "off",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/prefer-ternary": [
+      "error",
+      "only-single-line"
+    ],
+    "unicorn/prevent-abbreviations": [
+      "error",
+      {
+        "checkFilenames": false
       }
-    }, {
-      "enforceForRenamedProperties": false
-    }],
-    "max-len": ["error", 120, 2, {
-      "ignoreUrls": true,
-      "ignoreComments": true,
-      "ignoreRegExpLiterals": true,
-      "ignoreStrings": true,
-      "ignoreTemplateLiterals": true
-    }],
-    "spaced-comment": ["error", "always", {
-      "line": {
-        "exceptions": ["-", "+"],
-        "markers": ["=", "!", "/"]
-      },
-      "block": {
-        "exceptions": ["-", "+"],
-        "markers": ["=", "!", ":", "::"],
-        "balanced": true
-      }
-    }],
-    "jsdoc/require-param-description": 0,
-    "jsdoc/require-returns-description": 0,
-    "jsdoc/no-undefined-types": 0,
-    "jsdoc/valid-types": 0,
-    "jsdoc/newline-after-description": ["warn", "never"],
-    "jsdoc/require-returns": ["warn", {
-      "forceReturnsWithAsync": true,
-      "forceRequireReturn": true
-    }]
+    ],
+    "unicorn/switch-case-braces": "off",
+    "unicorn/text-encoding-identifier-case": "off"
   },
   "settings": {
     "jsdoc": {
       "preferredTypes": {
-        "object.": "Object.<>",
-        "object<>": "Object.<>",
-        "object": "Object"
+        "array": "Array",
+        "object": "Object",
+        "object.": "Object<>",
+        "object<>": "Object<>",
+        "symbol": "Symbol"
       },
       "tagNamePreference": {
         "augment": "extends",
-        "returns": "return",
+        "constant": "const",
         "property": "prop",
-        "constant": "const"
+        "returns": "return"
       }
     }
   }

@@ -1,12 +1,21 @@
 {
+  "author": "Carlos Lopez Jr. <clshortfuse@gmail.com> (https://shortfuse.org/)",
   "description": "An opt-in, stream-based approach to Web Hosting with NodeJS",
   "devDependencies": {
     "@fidm/x509": "^1.2.1",
+    "@types/node": "^16.18.40",
+    "@typescript-eslint/eslint-plugin": "^6.3.0",
+    "@typescript-eslint/parser": "^6.3.0",
     "ava": "^4.1.0",
-    "c8": "^7.11.0"
+    "c8": "^7.11.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-canonical": "^4.9.0",
+    "eslint-plugin-jsdoc": "^46.4.6",
+    "eslint-plugin-n": "^16.0.1",
+    "eslint-plugin-unicorn": "^48.0.1"
   },
   "engines": {
-    "node": ">=14.15 || >=v16.13"
+    "node": ">v16.13"
   },
   "exports": {
     "./*": "./*"
@@ -25,14 +34,14 @@
   "license": "MIT",
   "name": "webhoster",
   "scripts": {
-    "pretestallsync": "rimraf coverage",
-    "testallsync": "scripts/test-all-sync.sh",
+    "debug-test": "ava --serial",
+    "posttestall": "c8 report",
     "posttestallsync": "c8 report",
     "pretestall": "rimraf coverage",
-    "testall": "scripts/test-all.sh",
-    "posttestall": "c8 report",
+    "pretestallsync": "rimraf coverage",
     "test": "c8 ava",
-    "debug-test": "ava --serial"
+    "testall": "scripts/test-all.sh",
+    "testallsync": "scripts/test-all-sync.sh"
   },
   "type": "module",
   "version": "0.2.0"

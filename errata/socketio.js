@@ -7,15 +7,13 @@
  * @return {void}
  */
 export function addHttp2Support(httpHandler, socketioPath = /^\/socket\.io\//i) {
-  const fn = httpHandler.handleHttp2Stream;
-  /** @type {fn} */
-  const newFunction = (...args) => {
+  const previous = httpHandler.handleHttp2Stream;
+  // eslint-disable-next-line no-param-reassign, unicorn/prevent-abbreviations
+  httpHandler.handleHttp2Stream = (...args) => {
     const [, headers] = args;
     if (headers?.[':path']?.match(socketioPath)) {
       return Promise.resolve(null);
     }
-    return fn.call(httpHandler, ...args);
+    return previous.call(httpHandler, ...args);
   };
-  // eslint-disable-next-line no-param-reassign
-  httpHandler.handleHttp2Stream = newFunction;
 }
