@@ -4,13 +4,14 @@ import test from 'ava';
 
 import HttpHandler from '../../../lib/HttpHandler.js';
 import HttpResponse from '../../../lib/HttpResponse.js';
+import { noop } from '../../../utils/function.js';
 
 test('HttpResponse.sendStatusOnly() - header sent', async (t) => {
   const res = new HttpResponse({
     onHeadersSent: () => true,
     stream: new PassThrough(),
   });
-  const error = await t.throwsAsync(() => res.sendStatusOnly(500));
+  const error = await t.throwsAsync(async () => await res.sendStatusOnly(500));
   t.is(error.message, 'ERR_HEADER_SENT');
 });
 
@@ -19,7 +20,7 @@ test('HttpResponse.sendStatusOnly() - not implemented', async (t) => {
     onHeadersSent: () => false,
     stream: new PassThrough(),
   });
-  const error = await t.throwsAsync(() => res.sendStatusOnly(500));
+  const error = await t.throwsAsync(async () => await res.sendStatusOnly(500));
   t.is(error.message, 'NOT_IMPLEMENTED');
 });
 
@@ -29,7 +30,7 @@ test('HttpResponse.sendStatusOnly() - not writable', async (t) => {
     stream: new PassThrough(),
   });
   res.stream.destroy();
-  const error = await t.throwsAsync(() => res.sendStatusOnly(500));
+  const error = await t.throwsAsync(async () => await res.sendStatusOnly(500));
   t.is(error.message, 'NOT_WRITABLE');
 });
 
@@ -53,7 +54,7 @@ test('HttpResponse.sendHeaders()', async (t) => {
     onSendHeaders: (flush, end) => {},
   });
   t.false(res.headersSent);
-  const result = await res.sendHeaders();
+  await res.sendHeaders();
   t.true(res.headersSent);
 });
 
@@ -91,7 +92,7 @@ test('HttpResponse.send() - non-writable', async (t) => {
   const res = new HttpResponse({ stream });
   t.false(stream.destroyed);
   stream.destroy();
-  const error = await t.throwsAsync(() => res.send(Buffer.from('foo')));
+  const error = await t.throwsAsync(async () => await res.send(Buffer.from('foo')));
   t.is(error.message, 'NOT_WRITABLE');
 });
 
@@ -99,7 +100,7 @@ test('HttpResponse.send() - null', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  const res = new HttpResponse({ stream, onSendHeaders: noop });
   t.false(stream.writableEnded);
   const result = await res.send();
   t.is(result, HttpHandler.END);
@@ -114,7 +115,7 @@ test('HttpResponse.send() - content-handler typeof string', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const response = new HttpResponse({ stream });
+  const response = new HttpResponse({ stream, onSendHeaders: noop });
   response.finalizers.push((res) => {
     if (typeof res.body === 'string') {
       res.body = Buffer.from(res.body, 'latin1');
@@ -135,7 +136,7 @@ test('HttpResponse.send() - content-handler instanceof Date', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const response = new HttpResponse({ stream });
+  const response = new HttpResponse({ stream, onSendHeaders: noop });
   const d = new Date(0);
   response.finalizers.push((res) => {
     if (res.body instanceof Date) {
@@ -157,7 +158,7 @@ test('HttpResponse.send()', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  const res = new HttpResponse({ stream, onSendHeaders: noop });
   t.false(stream.writableEnded);
   const result = await res.send(Buffer.from('foo'));
   t.is(result, HttpHandler.END);
@@ -173,12 +174,12 @@ test('HttpResponse.end() - non-writable', async (t) => {
   t.plan(7);
   const stream = new PassThrough();
   const reader = new PassThrough();
-  pipeline(stream, reader, (err) => {
-    if (err) t.pass();
+  pipeline(stream, reader, (error) => {
+    if (error) t.pass();
     else t.fail();
   });
   // stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  const res = new HttpResponse({ stream, onSendHeaders: noop });
   t.false(stream.destroyed);
   stream.destroy();
   t.true(stream.destroyed);
@@ -201,7 +202,7 @@ test('HttpResponse.end() - content-handler typeof string', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const response = new HttpResponse({ stream });
+  const response = new HttpResponse({ stream, onSendHeaders: noop });
   response.finalizers.push((res) => {
     if (typeof res.body === 'string') {
       res.body = Buffer.from(res.body, 'latin1');
@@ -222,7 +223,7 @@ test('HttpResponse.end() - content-handler instanceof Date', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const response = new HttpResponse({ stream });
+  const response = new HttpResponse({ stream, onSendHeaders: noop });
   const d = new Date(0);
   response.finalizers.push((res) => {
     if (res.body instanceof Date) {
@@ -244,7 +245,7 @@ test('HttpResponse.end() - null', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  const res = new HttpResponse({ stream, onSendHeaders: noop });
   t.false(stream.writableEnded);
   const result = res.end();
   t.is(result, HttpHandler.END);
@@ -259,7 +260,7 @@ test('HttpResponse.end()', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  const res = new HttpResponse({ stream, onSendHeaders: noop });
   t.false(stream.writableEnded);
   const result = res.end(Buffer.from('foo'));
   t.is(result, HttpHandler.END);

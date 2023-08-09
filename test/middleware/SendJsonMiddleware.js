@@ -15,9 +15,15 @@ test('SendJsonMiddleware.execute()', async (t) => {
   const stream = new PassThrough();
   const reader = new PassThrough();
   stream.pipe(reader);
-  const res = new HttpResponse({ stream });
+  let headersSent = false;
+  const response = new HttpResponse({
+    stream,
+    onSendHeaders() {
+      headersSent = true;
+    },
+  });
   const middleware = new SendJsonMiddleware();
-  middleware.execute({ res });
+  middleware.execute({ response });
 
   const jsonContent = {
     number: Math.floor(Math.random() * 10),
@@ -34,7 +40,9 @@ test('SendJsonMiddleware.execute()', async (t) => {
     },
   };
 
-  await res.send(jsonContent);
+  t.false(headersSent);
+  await response.send(jsonContent);
+  t.true(headersSent);
 
   for await (const chunk of reader) {
     const s = chunk.toString();
@@ -45,5 +53,5 @@ test('SendJsonMiddleware.execute()', async (t) => {
     });
   }
 
-  t.is(res.headers['content-type'], 'application/json;charset=utf-8');
+  t.is(response.headers['content-type'], 'application/json;charset=utf-8');
 });

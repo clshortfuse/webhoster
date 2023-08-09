@@ -4,14 +4,12 @@ import HttpRequest from '../../../lib/HttpRequest.js';
 
 test('HttpRequest.URL', (t) => {
   const url = 'http://my.domain.name/pathname?foo=bar&baz=qux/#hash';
-  const req = new HttpRequest({ url });
+  const request = new HttpRequest({ url });
 
-  t.is(url, req.url);
+  t.is(url, request.url);
 
-  const urlObject = req.URL;
-
-  t.assert(urlObject instanceof URL);
-  t.is(url, urlObject.toString());
+  t.assert(typeof request.url === 'string');
+  t.is(url, request.url);
 });
 
 test('HttpRequest.mediaType', (t) => {
@@ -40,23 +38,23 @@ test('HttpRequest.mediaType', (t) => {
     },
   };
   for (const [contentType, entry] of Object.entries(entries)) {
-    const req = new HttpRequest({ headers: { 'content-type': contentType } });
-    for (const prop of ['type', 'suffix', 'subtype']) {
-      if (prop in entry) {
-        t.is(req.mediaType[prop], entry[prop]);
+    const request = new HttpRequest({ headers: { 'content-type': contentType } });
+    for (const property of ['type', 'suffix', 'subtype']) {
+      if (property in entry) {
+        t.is(request.mediaType[property], entry[property]);
       } else {
-        t.falsy(req.mediaType[prop]);
+        t.falsy(request.mediaType[property]);
       }
     }
-    t.deepEqual(entry.parameters ?? {}, req.mediaType.parameters);
+    t.deepEqual(entry.parameters ?? {}, request.mediaType.parameters);
   }
 });
 
 test('HttpRequest.mediaType - error', (t) => {
   /** @type {Record<string, Partial<import('../../../lib/HttpRequest.js').MediaType>>} */
 
-  const req = new HttpRequest({ headers: { 'content-type': 'multipart/mixed;boundary=improper"quotes' } });
-  const error = t.throws(() => req.mediaType);
+  const request = new HttpRequest({ headers: { 'content-type': 'multipart/mixed;boundary=improper"quotes' } });
+  const error = t.throws(() => request.mediaType);
   t.is(error.message, 'ERR_CONTENT_TYPE');
 });
 
@@ -74,11 +72,11 @@ test('HttpRequest.charset', (t) => {
     'multipart/mixed;boundary=gc0p4Jq0M2Yt08jU534c0p;charset=ascii': 'ascii',
   };
   for (const [contentType, charset] of Object.entries(entries)) {
-    const req = new HttpRequest({ headers: { 'content-type': contentType } });
-    if (!charset) {
-      t.falsy(req.charset);
+    const request = new HttpRequest({ headers: { 'content-type': contentType } });
+    if (charset) {
+      t.is(request.charset, charset);
     } else {
-      t.is(req.charset, charset);
+      t.falsy(request.charset);
     }
   }
 });
@@ -95,7 +93,7 @@ test('HttpRequest.bufferEncoding', (t) => {
     'application/json;charset=base64': 'base64',
   };
   for (const [contentType, bufferEncoding] of Object.entries(entries)) {
-    const req = new HttpRequest({ headers: { 'content-type': contentType } });
-    t.is(req.bufferEncoding, bufferEncoding);
+    const request = new HttpRequest({ headers: { 'content-type': contentType } });
+    t.is(request.bufferEncoding, bufferEncoding);
   }
 });

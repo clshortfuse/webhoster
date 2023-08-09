@@ -8,10 +8,10 @@ import {
   getTestBinaryStream, getTestHash, getTestString, getTestTextStream,
 } from '../../fixtures/stream.js';
 
-test('HttpRequest.body()', async (t) => {
-  const req = new HttpRequest({ stream: getTestBinaryStream() });
+test('HttpRequest.readable', async (t) => {
+  const request = new HttpRequest({ stream: getTestBinaryStream() });
 
-  t.false(req.bodyUsed);
+  t.false(request.bodyUsed);
 
   /** @type {typeof import('node:stream/web').ReadableStream} */
   let ReadableStream;
@@ -21,16 +21,16 @@ test('HttpRequest.body()', async (t) => {
 
   if (!ReadableStream || 'toWeb' in Readable === false) {
     t.log('Not supported.');
-    const error = t.throws(() => req.body, { instanceOf: Error });
+    const error = t.throws(() => request.readable, { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
-    t.false(req.bodyUsed);
+    t.false(request.bodyUsed);
     return;
   }
 
-  const stream = req.body;
-  t.true(req.bodyUsed);
-  t.true(req.stream.readable);
-  t.false(req.stream.readableEnded);
+  const stream = request.readable;
+  t.true(request.bodyUsed);
+  t.true(request.stream.readable);
+  t.false(request.stream.readableEnded);
 
   t.assert(stream instanceof ReadableStream);
 
@@ -41,27 +41,26 @@ test('HttpRequest.body()', async (t) => {
   const computedHash = hash.digest().toString('hex');
   const actualHash = await getTestHash();
   t.is(actualHash, computedHash);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 });
 
-test('HttpRequest.body() - GET', (t) => {
-  const req = new HttpRequest({ method: 'GET' });
+test('HttpRequest.readable - GET', (t) => {
+  const request = new HttpRequest({ method: 'GET' });
 
-  t.false(req.bodyUsed);
-  const { body } = req;
-  t.is(body, null);
-  t.false(req.bodyUsed);
+  t.false(request.bodyUsed);
+  t.is(request.readable, null);
+  t.false(request.bodyUsed);
 });
 
 test('HttpRequest.buffer()', async (t) => {
-  const req = new HttpRequest({ stream: getTestBinaryStream() });
+  const request = new HttpRequest({ stream: getTestBinaryStream() });
 
-  t.false(req.bodyUsed);
-  const data = await req.buffer();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.buffer();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(Buffer.isBuffer(data));
   // t.is(data.length, BUFFER_SIZE);
@@ -84,13 +83,13 @@ test('HttpRequest.buffer() - MAX_BUFFER_SIZE_REACHED', async (t) => {
     t.pass();
     return;
   }
-  const req = new HttpRequest({ stream: getTestBinaryStream() });
+  const request = new HttpRequest({ stream: getTestBinaryStream() });
 
-  t.false(req.bodyUsed);
-  req.MIN_INITIAL_BUFFER_SIZE = 64;
-  req.MAX_INITIAL_BUFFER_SIZE = 128;
-  req.MAX_BUFFER_SIZE = 1024;
-  const error = await t.throwsAsync(() => req.buffer());
+  t.false(request.bodyUsed);
+  request.MIN_INITIAL_BUFFER_SIZE = 64;
+  request.MAX_INITIAL_BUFFER_SIZE = 128;
+  request.MAX_BUFFER_SIZE = 1024;
+  const error = await t.throwsAsync(async () => await request.buffer());
   t.is(error.message, 'MAX_BUFFER_SIZE_REACHED');
 });
 
@@ -106,18 +105,18 @@ test('HttpRequest.buffer() - content-length invalid', async (t) => {
     return;
   }
 
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: getTestBinaryStream(),
     headers: {
       'content-length': '100',
     },
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.buffer();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.buffer();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(Buffer.isBuffer(data));
   // t.is(data.length, BUFFER_SIZE);
@@ -134,21 +133,21 @@ test('HttpRequest.buffer() - encode string back', async (t) => {
   const source = Readable.from([Buffer.from(text)]);
   const downstream = new PassThrough();
   downstream.setEncoding('utf8');
-  const req = new HttpRequest({ stream: source, headers: {} });
-  req.addDownstream(downstream);
-  const data = await req.buffer();
+  const request = new HttpRequest({ stream: source, headers: {} });
+  request.addDownstream(downstream);
+  const data = await request.buffer();
   t.true(Buffer.isBuffer(data));
   t.is(data.toString(), text);
 });
 
 test('HttpRequest.arrayBuffer()', async (t) => {
-  const req = new HttpRequest({ stream: getTestBinaryStream() });
+  const request = new HttpRequest({ stream: getTestBinaryStream() });
 
-  t.false(req.bodyUsed);
-  const data = await req.arrayBuffer();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.arrayBuffer();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(data instanceof ArrayBuffer);
   // t.is(data.byteLength, BUFFER_SIZE);
@@ -162,14 +161,14 @@ test('HttpRequest.arrayBuffer()', async (t) => {
 
 test('HttpRequest.blob()', async (t) => {
   const contentType = 'application/octet-stream';
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: getTestBinaryStream(),
     headers: {
       'content-type': contentType,
     },
   });
 
-  t.false(req.bodyUsed);
+  t.false(request.bodyUsed);
 
   let BlobClass = (typeof Blob === 'undefined' ? undefined : Blob);
   try {
@@ -186,16 +185,16 @@ test('HttpRequest.blob()', async (t) => {
 
   if (!BlobClass && (!streamConsumers || !streamConsumers.blob)) {
     t.log('Not supported.');
-    const error = await t.throwsAsync(() => req.blob(), { instanceOf: Error });
+    const error = await t.throwsAsync(async () => await request.blob(), { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
-    t.false(req.bodyUsed);
+    t.false(request.bodyUsed);
     return;
   }
 
-  const data = await req.blob();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  const data = await request.blob();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   if (BlobClass) {
     t.assert(data instanceof BlobClass);
@@ -213,12 +212,12 @@ test('HttpRequest.blob()', async (t) => {
 });
 
 test('HttpRequest.blob() - no content-type', async (t) => {
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: getTestBinaryStream(),
     headers: {},
   });
 
-  t.false(req.bodyUsed);
+  t.false(request.bodyUsed);
 
   let BlobClass = (typeof Blob === 'undefined' ? undefined : Blob);
   try {
@@ -235,28 +234,28 @@ test('HttpRequest.blob() - no content-type', async (t) => {
 
   if (!BlobClass && (!streamConsumers || !streamConsumers.blob)) {
     t.log('Not supported.');
-    const error = await t.throwsAsync(() => req.blob(), { instanceOf: Error });
+    const error = await t.throwsAsync(async () => await request.blob(), { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
-    t.false(req.bodyUsed);
+    t.false(request.bodyUsed);
     return;
   }
 
-  const data = await req.blob();
+  const data = await request.blob();
 
   t.falsy(data.type);
 });
 
 test('HttpRequest.text()', async (t) => {
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: getTestTextStream(),
     headers: {},
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.text();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.text();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'string');
   t.is(data, getTestString());
@@ -265,18 +264,18 @@ test('HttpRequest.text()', async (t) => {
 test('HttpRequest.text() - utf16', async (t) => {
   const text = '\u{FF11}\u{FF12}\u{FF13}\u{FF14}';
   const buffer = Buffer.from('\u{FF11}\u{FF12}\u{FF13}\u{FF14}', 'utf16le');
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([buffer]),
     headers: {
       'content-type': 'text/plain;charset=ucs-2',
     },
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.text();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.text();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'string');
   t.is(data, text);
@@ -299,16 +298,16 @@ test('HttpRequest.json() - Object', async (t) => {
     },
   };
 
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(JSON.stringify(jsonContent))]),
     headers: {},
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.json();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.json();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
 
@@ -324,16 +323,16 @@ test('HttpRequest.json() - Array', async (t) => {
     2,
   ];
 
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(JSON.stringify(jsonContent))]),
     headers: {},
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.json();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.json();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
 
@@ -341,17 +340,18 @@ test('HttpRequest.json() - Array', async (t) => {
 });
 
 test('HttpRequest.formData - error', async (t) => {
-  const req = new HttpRequest({});
-  const error = await t.throwsAsync(async () => await req.formData());
+  const request = new HttpRequest({});
+  const error = await t.throwsAsync(async () => await request.formData());
   t.is(error.message, 'UNSUPPORTED_MEDIA_TYPE');
 });
 
 test('HttpRequest.read() - GET', async (t) => {
   const url = 'http://my.domain.name/pathname?foo=bar&baz=qux&q1=a&q1=b#hash';
-  const req = new HttpRequest({ method: 'GET', url });
+  const parsedURL = new URL(url);
+  const request = new HttpRequest({ method: 'GET', url, query: parsedURL.search });
 
   /** @type {URLSearchParams} */
-  const data = await req.read();
+  const data = await request.read();
   t.true(data instanceof URLSearchParams);
   t.is(data.get('foo'), 'bar');
   t.is(data.get('baz'), 'qux');
@@ -365,13 +365,13 @@ test('HttpRequest.read() - GET', async (t) => {
 });
 
 test('HttpRequest.read() - No content-type (buffer)', async (t) => {
-  const req = new HttpRequest({ stream: getTestBinaryStream(), headers: {} });
+  const request = new HttpRequest({ stream: getTestBinaryStream(), headers: {} });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(Buffer.isBuffer(data));
   // t.is(data.length, BUFFER_SIZE);
@@ -384,13 +384,13 @@ test('HttpRequest.read() - No content-type (buffer)', async (t) => {
 });
 
 test('HttpRequest.read() - No content-type (string)', async (t) => {
-  const req = new HttpRequest({ stream: Readable.from(['foo', 'bar']), headers: {} });
+  const request = new HttpRequest({ stream: Readable.from(['foo', 'bar']), headers: {} });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'string');
   // t.is(data.length, BUFFER_SIZE);
@@ -400,13 +400,13 @@ test('HttpRequest.read() - No content-type (string)', async (t) => {
 
 test('HttpRequest.read() - No content-type (object-stream)', async (t) => {
   const jsonContent = { foo: 'bar' };
-  const req = new HttpRequest({ stream: Readable.from([jsonContent]), headers: {} });
+  const request = new HttpRequest({ stream: Readable.from([jsonContent]), headers: {} });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
   // t.is(data.length, BUFFER_SIZE);
@@ -415,31 +415,31 @@ test('HttpRequest.read() - No content-type (object-stream)', async (t) => {
 });
 
 test('HttpRequest.read() - No content-type (null)', async (t) => {
-  const req = new HttpRequest({ stream: Readable.from([]), headers: {} });
+  const request = new HttpRequest({ stream: Readable.from([]), headers: {} });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
   t.is(data, null);
 });
 
 test('HttpRequest.read() - application/json', async (t) => {
   const jsonContent = { hello: 'world' };
   const testString = JSON.stringify(jsonContent);
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(testString)]),
     headers: {
       'content-type': 'application/json;charset=utf-8',
     },
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
   t.deepEqual(data, jsonContent);
@@ -448,18 +448,18 @@ test('HttpRequest.read() - application/json', async (t) => {
 test('HttpRequest.read() - text/plain', async (t) => {
   const jsonContent = { hello: 'world' };
   const testString = JSON.stringify(jsonContent);
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(testString)]),
     headers: {
       'content-type': 'text/plain;charset=utf-8',
     },
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'string');
   t.is(data, testString);
@@ -468,18 +468,18 @@ test('HttpRequest.read() - text/plain', async (t) => {
 test('HttpRequest.read() - application/vnd.api+json', async (t) => {
   const jsonContent = { hello: 'world' };
   const testString = JSON.stringify(jsonContent);
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(testString)]),
     headers: {
       'content-type': 'application/vnd.api+json;charset=utf-8',
     },
   });
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
   t.deepEqual(data, jsonContent);
@@ -488,29 +488,29 @@ test('HttpRequest.read() - application/vnd.api+json', async (t) => {
 test('HttpRequest.read() - contentReaders filtering', async (t) => {
   const jsonContent = { hello: 'world' };
   const testString = JSON.stringify(jsonContent);
-  const req = new HttpRequest({
+  const request = new HttpRequest({
     stream: Readable.from([Buffer.from(testString)]),
     headers: {
       'content-type': 'application/vnd.api;charset=utf-8',
     },
   });
-  req.contentReaders.push(
+  request.contentReaders.push(
     {
-      type: 'application', subtype: 'api', tree: 'vnd2', parse: req.text,
+      type: 'application', subtype: 'api', tree: 'vnd2', parse: request.text,
     },
     {
-      type: 'application', subtype: 'api', tree: 'vnd', test: () => false, parse: req.text,
+      type: 'application', subtype: 'api', tree: 'vnd', test: () => false, parse: request.text,
     },
     {
-      type: 'application', subtype: 'api', tree: 'vnd', parse: req.json,
+      type: 'application', subtype: 'api', tree: 'vnd', parse: request.json,
     },
   );
 
-  t.false(req.bodyUsed);
-  const data = await req.read();
-  t.true(req.bodyUsed);
-  t.false(req.stream.readable);
-  t.true(req.stream.readableEnded);
+  t.false(request.bodyUsed);
+  const data = await request.read();
+  t.true(request.bodyUsed);
+  t.false(request.stream.readable);
+  t.true(request.stream.readableEnded);
 
   t.assert(typeof data === 'object');
   t.deepEqual(data, jsonContent);
