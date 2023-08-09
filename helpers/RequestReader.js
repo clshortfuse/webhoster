@@ -134,7 +134,7 @@ export default class RequestReader {
       /** @type {[string, string][]} */
       const output = [];
       for (const bytes of sequences) {
-        if (bytes.length === 0) continue;
+        if (!bytes.length) continue;
 
         // Find 0x3D and replace 0x2B in one loop for better performance
         let indexOf0x3D = -1;
