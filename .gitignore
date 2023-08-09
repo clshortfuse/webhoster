@@ -1,5 +1,5 @@
 node_modules/*
 certificates/*
+coverage/*
 *.cjs
 **/.DS_Store
-coverage/*
