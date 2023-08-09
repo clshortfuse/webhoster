@@ -1,9 +1,11 @@
-import { createSecureContext } from 'tls';
+import { createSecureContext } from 'node:tls';
 
 import x509 from '@fidm/x509';
 
-/** @typedef {import('tls').SecureContext} SecureContext
-/** @typedef {import('tls').TlsOptions} TlsOptions */
+/**
+ @typedef {import('tls').SecureContext} SecureContext
+/** @typedef {import('tls').TlsOptions} TlsOptions
+ */
 
 /**
  * @callback SNICallback
@@ -34,24 +36,25 @@ export function setup(defaultTlsOptions) {
  */
 function checkCommonName(commonName, serverName) {
   if (!commonName || !serverName) return false;
-  return RegExp(`^${commonName.replace('.', '\\.').replace('*', '.*')}$`, 'i').test(serverName);
+  return new RegExp(`^${commonName.replace('.', '\\.').replace('*', '.*')}$`, 'i').test(serverName);
 }
 
 /**
  * @param {string} servername
  * @param {SNICallback} cb
+ * @param callback
  * @return {void}
  */
-export function SNICallback(servername, cb) {
+export function SNICallback(servername, callback) {
   const hasContext = contexts.has(servername);
   if (hasContext) {
     console.debug('Resuing context created for:', servername);
-    cb(null, contexts.get(servername));
+    callback(null, contexts.get(servername));
     return;
   }
-  const options = [...contextOptions.values()].find((ctx) => {
-    if (!ctx.cert) return false;
-    const buffer = (typeof ctx.cert === 'string') ? Buffer.from(ctx.cert) : ctx.cert;
+  const options = [...contextOptions.values()].find((context_) => {
+    if (!context_.cert) return false;
+    const buffer = (typeof context_.cert === 'string') ? Buffer.from(context_.cert) : context_.cert;
     const cert = x509.Certificate.fromPEM(buffer);
     // Check expired
     if (!cert.validTo || new Date() > cert.validTo) return false;
@@ -71,5 +74,5 @@ export function SNICallback(servername, cb) {
     // Pick any?
   }
   contexts.set(servername, context);
-  cb(null, context);
+  callback(null, context);
 }

@@ -1,27 +1,30 @@
+// @ts-check
+
 /* eslint-disable no-console */
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import HttpListener from '../helpers/HttpListener.js';
 import RequestHeaders from '../helpers/RequestHeaders.js';
 import ResponseHeaders from '../helpers/ResponseHeaders.js';
 import HttpHandler from '../lib/HttpHandler.js';
+import AutoHeadersMiddleware from '../middleware/AutoHeadersMiddleware.js';
 import CORSMiddleware from '../middleware/CORSMiddleware.js';
 import ContentDecoderMiddleware from '../middleware/ContentDecoderMiddleware.js';
 import ContentEncoderMiddleware from '../middleware/ContentEncoderMiddleware.js';
 import ContentLengthMiddleware from '../middleware/ContentLengthMiddleware.js';
-import ContentReaderMiddleware from '../middleware/ContentReaderMiddleware.js';
-import ContentWriterMiddleware from '../middleware/ContentWriterMiddleware.js';
 import HashMiddleware from '../middleware/HashMiddleware.js';
 import HeadMethodMiddleware from '../middleware/HeadMethodMiddleware.js';
 import MethodMiddleware from '../middleware/MethodMiddleware.js';
 import PathMiddleware from '../middleware/PathMiddleware.js';
-import SendHeadersMiddleware from '../middleware/SendHeadersMiddleware.js';
+import SendJsonMiddleware from '../middleware/SendJsonMiddleware.js';
+import SendStringMiddleware from '../middleware/SendStringMiddleware.js';
 
 import {
   HTTPS_HOST, HTTPS_PORT, HTTP_HOST, HTTP_PORT,
 } from './constants.js';
 import * as tls from './tls.js';
+import { ServerResponse } from 'node:http';
 
 /** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
 
@@ -29,30 +32,27 @@ import * as tls from './tls.js';
  * Redirect to HTTPS/2
  * @type {MiddlewareFunction}
  */
-function redirectHttpsMiddleware({ req, res }) {
-  if (req.url.protocol !== 'http:') {
-    return null;
+function redirectHttpsMiddleware({request,response}) {
+  if (request.protocol === 'https:') {
+    return true;
   }
-  const url = new URL(req.url.href);
+  const url = new URL(request.url);
   url.protocol = 'https:';
   url.port = HTTPS_PORT.toString(10);
   const Location = url.href;
-  res.status = 301;
-  res.headers.location = Location;
-  res.sendHeaders();
-  return 'end';
+  response.headers.location = Location;
+  return 301;
 }
 
 /** @type {MiddlewareFunction} */
-function indexMiddleware({ res }) {
+function indexMiddleware(transaction) {
   console.log('indexMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
-  if (res.canPushPath) {
-    res.pushPath('/script.js').catch(console.error);
-    res.pushPath('/fake.png').catch(console.error);
+  transaction.response.headers['content-type'] = 'text/html';
+  if (transaction.canPushPath) {
+    transaction.pushPath('/script.js').catch(console.error);
+    transaction.pushPath('/fake.png').catch(console.error);
   }
-  res.stream.end(/* html */ `
+  return /* html */ `
     <html>
       <head><script src="script.js"></script></head>
       </body>
@@ -60,110 +60,110 @@ function indexMiddleware({ res }) {
         <img src="fake.png"/>
         <form action="form" method="POST"><input name="field"><input type="submit" value="POST"></form>
         <form action="form" method="GET"><input name="field"><input type="submit" value="GET"></form>
+        <ul>
+          <li><a href="/cors.html">/cors.html</a></li>
+          <li><a href="/large.html">/large.html</a></li>
+          <li><a href="/chunk.html">/chunk.html</a></li>
+          <li><a href="/blank.html">/blank.html</a></li>
+          <li><a href="/nocontent.html">/nocontent.html</a></li>
+          <li><a href="/gzip.html">/gzip.html</a></li>
+          <li><a href="/plaintext.html">/plaintext.html</a></li>
+          <li><a href="/get.json">/get.json</a></li>
+        </ul>
       </body>
     </html>
-  `);
-  return 'end';
+  `;
 }
 
 /** @type {MiddlewareFunction} */
-function largeMiddleware({ req, res }) {
+function largeMiddleware({request}) {
   console.log('largeMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
+  request.headers['content-type'] = 'text/html';
   let block = '';
-  const len = Number.parseInt(req.url.searchParams.get('lines'), 10) || 10000;
+  const len = Number.parseInt(request.searchParams.get('lines'), 10) || 10_000;
   for (let i = 0; i < len; i += 1) {
     block += `<pre>${i.toString(36)}</pre><br>`;
   }
-  res.stream.end(/* html */ `
+  return /* html */ `
     <html>
       <head></head>
       </body>
         ${block}
       </body>
     </html>
-  `);
-  return 'end';
+  `;
 }
 
 /** @type {MiddlewareFunction} */
-function chunkMiddleware({ req, res }) {
+function chunkMiddleware({ request, response }) {
   console.log('chunkMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
+  response.headers['content-type'] = 'text/html';
   let block = '';
   for (let i = 0; i < 1000; i += 1) {
-    block += `<pre>${Math.random().toString(36).substr(2, 16)}</pre><br>`;
+    block += `<pre>${Math.random().toString(36).slice(2, 18)}</pre><br>`;
   }
-  const delay = Number.parseInt(req.url.searchParams.get('delay'), 10) || 0;
+  const delay = Number.parseInt(request.searchParams.get('delay'), 10) || 0;
+  let stream = response.getPipeline();
   return new Promise((resolve) => {
     const timingFn = delay ? setTimeout : process.nextTick;
     timingFn(() => {
       console.log('write1');
-      res.stream.write(/* html */ `
-    <html>
-        <head></head>
-        </body>
-    `);
+      stream.write(/* html */ `
+        <html>
+            <head></head>
+            </body>
+      `);
     }, delay);
     timingFn(() => {
       console.log('write2');
-      res.stream.write(block);
+      stream.write(block);
     }, delay * 2);
     timingFn(() => {
       console.log('write3');
-      res.stream.write(/* html */ `
+      stream.write(/* html */ `
         </body>
-      </html>
-    `);
+        </html>
+      `);
     }, delay * 3);
-    timingFn(() => { resolve('end'); }, delay * 4);
+    timingFn(() => { 
+      stream.end();
+      resolve(HttpHandler.END);
+     }, delay * 4);
   });
 }
 
 /** @type {MiddlewareFunction} */
-function plainTextMiddleware({ res }) {
+function plainTextMiddleware({ response }) {
   console.log('plainTextMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
-  res.headers['content-encoding'] = 'identity';
-  res.stream.end('This is always in plaintext');
-  return 'end';
+  response.status = 200;
+  response.headers['content-type'] = 'text/html';
+  response.headers['content-encoding'] = 'identity';
+  return 'This is always in plaintext';
 }
 
 /** @type {MiddlewareFunction} */
-function blankMiddleware({ res }) {
+function blankMiddleware({ response }) {
   console.log('blankMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
-  res.stream.end();
-  return 'end';
+  response.headers['content-type'] = 'text/html';
+  response.headers['content-length'] = '0';
+  return 200;
 }
 
 /** @type {MiddlewareFunction} */
-function noContentMiddleware({ res }) {
-  console.log('noContentMiddleware');
-  res.status = 204;
-  return 'end';
-}
-
-/** @type {MiddlewareFunction} */
-function gzipMiddleware({ res }) {
+function gzipMiddleware({ response }) {
   console.log('gzipMiddleware');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
-  res.headers['content-encoding'] = 'gzip';
-  res.stream.end('This is always compressed with gzip.');
-  return 'end';
+  response.statusCode = 200;
+  response.headers['content-type'] = 'text/html';
+  response.headers['content-encoding'] = 'gzip';
+  return 'This is always compressed with gzip.';
 }
 
 /** @type {MiddlewareFunction} */
-function corsTest({ res }) {
+function corsTest({ response }) {
   console.log('cors');
-  res.status = 200;
-  res.headers['content-type'] = 'text/html';
-  res.stream.end(/* html */ `
+  response.statusCode = 200;
+  response.headers['content-type'] = 'text/html';
+  return /* html */ `
     <html>
       <head>
         <script type="text/javascript">
@@ -181,32 +181,32 @@ function corsTest({ res }) {
         ${new Date()}
       </body>
     </html>
-  `);
-  return 'end';
+  `;
 }
 
 /** @type {MiddlewareFunction} */
-function scriptMiddleware({ res }) {
+function scriptMiddleware(transaction) {
+  const response = transaction.response;
   console.log('scriptMiddleware');
   console.log('Holding script');
   return new Promise((resolve) => {
     setTimeout(() => {
-      res.status = 200;
-      res.headers['content-type'] = 'text/javascript';
-      if (res.canPushPath) {
-        res.pushPath('/fake.js').catch(console.error);
+      response.statusCode = 200;
+      response.headers['content-type'] = 'text/javascript';
+      if (transaction.canPushPath) {
+        transaction.pushPath('/fake.js').catch(console.error);
       } else {
         console.log('RIP Push');
       }
       console.log('Releasing script');
-      res.stream.end(/* js */ `
+      response.end(/* js */ `
         console.log('hello');
         let data = '';
         for(let i = 0; i < 10 ; i++) {
-          data += Math.random().toString(36).substr(2, 16);
+          data += Math.random().toString(36).slice(2, 18);
         }
         console.log(data);
-        fetch('http://127.0.0.1:8080/input.json', {
+        fetch('http://127.0.0.1:8080/echo.json', {
           method: 'POST',
           body: JSON.stringify({data}),
           headers: [['Content-Type', 'application/json']],
@@ -214,17 +214,19 @@ function scriptMiddleware({ res }) {
           .then((response) => console.log('match', response.data === data))
           .catch(console.error);
       `);
-      resolve('end');
+      resolve(HttpHandler.END);
     }, 0);
   });
 }
 
+ServerResponse
+
 /** @type {MiddlewareFunction} */
-function outputMiddleware({ req, res }) {
-  const reqHeaders = new RequestHeaders(req);
-  console.log(req.headers.cookie);
+function outputMiddleware({ request, response }) {
+  const reqHeaders = new RequestHeaders(request);
+  console.log(request.headers.cookie);
   console.log('reqHeaders.cookieEntries.test', reqHeaders.cookieEntries.test);
-  console.log('req.headers.cookie', req.headers.cookie);
+  console.log('req.headers.cookie', request.headers.cookie);
   console.log('reqHeaders.cookies.get("test")', reqHeaders.cookies.get('test'));
   console.log('reqHeaders.cookies.all("test")', reqHeaders.cookies.all('test'));
   console.log('reqHeaders.cookieEntries.test?.[0]', reqHeaders.cookieEntries.test?.[0]);
@@ -233,9 +235,9 @@ function outputMiddleware({ req, res }) {
   console.log('reqHeaders.cookieEntries.test4', reqHeaders.cookieEntries.test4);
   console.log("'test' in reqHeaders.cookieEntries", 'test' in reqHeaders.cookieEntries);
   console.log("'test4' in reqHeaders.cookieEntries", 'test4' in reqHeaders.cookieEntries);
-  console.log('req.headers.cookie', req.headers.cookie);
+  console.log('req.headers.cookie', request.headers.cookie);
 
-  const resHeaders = new ResponseHeaders(res);
+  const resHeaders = new ResponseHeaders(response);
   resHeaders.cookies.set({
     name: 'test',
     value: Date.now().toString(),
@@ -269,107 +271,100 @@ function outputMiddleware({ req, res }) {
   resHeaders.cookies.set('=blankname;path=/');
   resHeaders.cookies.set('quotedblank=""');
   resHeaders.cookieEntries.forEach((c) => console.log(c.toString()));
-  res.status = 200;
+  // res.statusCode = 200;
   // resHeaders.mediaType = 'application/json';
-  res.stream.end({ now: new Date() });
+  return { now: new Date() };
 }
 
 /** @type {MiddlewareFunction} */
-async function inputMiddleware({ req, res }) {
+async function inputMiddleware({ request, response }) {
   console.log('inputMiddleware');
 
-  return new Promise((resolve) => {
-    console.log('stalled processing for 1000ms');
-    setTimeout(async () => {
-      res.status = 200;
-      // Pipe it back and read at the same time
-      req.stream.pipe(res.stream);
-      const { value } = await req.stream[Symbol.asyncIterator]().next();
-      console.log('got input.json', typeof value, value);
-      resolve('end');
-    }, 0);
-  });
+  console.log('stalled processing for 1000ms');
+  // await new Promise((resolve) => setTimeout(resolve, 1000));
+  response.statusCode = 200;
+  console.log('reading post data from input.json');
+  // Pipe it back and read at the same time
+  request.stream.pipe(response.getPipeline());
+  // res.pipeFrom(req.stream);
+  const value = await request.read();
+  console.log('got input.json', typeof value, value);
+  return HttpHandler.END;
 }
 
 /** @type {MiddlewareFunction} */
-async function formGetMiddleware({ req, res }) {
+async function echoMiddleware({ request, response }) {
+  console.log('echoMiddleware');
+  return request.stream;
+}
+
+/** @type {MiddlewareFunction} */
+async function formGetMiddleware({ request, response }) {
   console.log('formGetMiddleware');
 
-  return new Promise((resolve) => {
-    console.log('stalled processing for 1000ms');
-    setTimeout(async () => {
-      const values = Object.fromEntries(req.url.searchParams.entries());
-      res.status = 200;
-      res.stream.end(values);
-      resolve('end');
-    }, 1000);
-  });
+  console.log('stalled processing for 1000ms');
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const data = Object.fromEntries(request.searchParams.entries());
+  console.log('returning', data);
+  return response.send(data);
 }
 
 /** @type {MiddlewareFunction} */
-async function outputURLMiddleware({ req, res }) {
-  console.log('outputURLMiddleware', req.locals.path);
-  res.status = 200;
-  res.stream.end(req.url.pathname);
-  return 'end';
+function outputURLMiddleware({ request, response, state }) {
+  console.log('outputURLMiddleware', state.path);
+  return response.code(200).end(request.pathname);
 }
 
 /** @type {MiddlewareFunction} */
-async function formPostMiddleware({ req, res }) {
+async function formPostMiddleware({ request, response }) {
   console.log('formPostMiddleware');
-  const { value } = await req.stream[Symbol.asyncIterator]().next();
+  /** @type {FormData} */
+  const value = await request.read();
   const stringData = JSON.stringify(value);
-  res.status = 200;
-  res.stream.end(`type: ${req.headers['content-type']}\n${stringData.toString()}}`);
-  return 'end';
+  return `type: ${request.headers['content-type']}\n${stringData.toString()}`;
 }
 
 /** @type {MiddlewareFunction} */
-function getJSONMiddleware({ res }) {
+function getJSONMiddleware() {
   console.log('getJSONMiddleware');
-  res.status = 200;
-  res.stream.end({ now: new Date() });
-  return 'end';
+  return { now: new Date() };
 }
 
 const USE_HTTPS_REDIRECT = false;
 const SHOULD_CRASH = false;
 
+/**
+ *
+ */
 function setupHandler() {
-  const { preprocessors, middleware, errorHandlers } = HttpHandler.defaultInstance;
+  const { middleware, errorHandlers } = HttpHandler.defaultInstance;
   // Conditional statement
-  preprocessors.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
-  const middlewareObject = {
-    // Discard body content
-    headMethod: new HeadMethodMiddleware(),
-    // Send headers automatically
-    sendHeaders: new SendHeadersMiddleware(),
-    // Calculate length of anything after
-    contentLength: new ContentLengthMiddleware(),
+  middleware.push(USE_HTTPS_REDIRECT ? redirectHttpsMiddleware : null);
+  const middlewareObject = new Set([
     // Allow Cross-Origin Resource Sharing
-    cors: new CORSMiddleware({
-      allowOrigin: ['http://localhost:8080', 'https://localhost:8443'],
-    }),
-    // Hash anything after
-    hash: new HashMiddleware(),
-    // Compress anything after
-    contentEncoder: new ContentEncoderMiddleware(),
-    // Convert Objects and Strings to Buffer
-    contentWriter: new ContentWriterMiddleware({ setCharset: true, setJSON: true }),
+    new CORSMiddleware({ allowOrigin: ['http://localhost:8080', 'https://localhost:8443'] }),
 
-    // Automatically decodes content
-    contentDecoder: new ContentDecoderMiddleware(),
-    // Automatically reads text, JSON, and form-url-encoded from requests
-    contentReader: new ContentReaderMiddleware({
-      buildString: true,
-      defaultMediaType: 'application/json',
-      parseJSON: true,
-      formURLEncodedFormat: 'object',
-    }),
-  };
-  preprocessors.push(middlewareObject);
-  const mapTest = new Map();
-  middleware.add(mapTest);
+    new ContentDecoderMiddleware(), // Automatically decodes content
+
+    new SendJsonMiddleware({
+      defaultCharset: 'utf-8',
+      setCharset: true,
+      setMediaType: true,
+    }), // Auto converts objects to JSON
+    new SendStringMiddleware({
+      defaultCharset: 'utf-8',
+      setCharset: true,
+    }), // Auto converts strings to buffer
+    new ContentEncoderMiddleware(), // Compress anything after
+    new HashMiddleware(), // Hash anything after
+    new ContentLengthMiddleware(), // Calculate length of anything after
+    new AutoHeadersMiddleware(), // Send headers automatically
+    new HeadMethodMiddleware(), // Discard body content
+
+  ]);
+  middleware.push(middlewareObject);
+  const setTest = new Set();
+  middleware.push(setTest);
   /** @type {any} */
   const getMiddlewareArray = [
     MethodMiddleware.GET,
@@ -377,20 +372,20 @@ function setupHandler() {
     [new PathMiddleware('/large.html'), largeMiddleware],
     [new PathMiddleware('/chunk.html'), chunkMiddleware],
     [new PathMiddleware('/blank.html'), blankMiddleware],
-    [new PathMiddleware('/nocontent.html'), noContentMiddleware],
+    [new PathMiddleware('/nocontent.html'), 204],
     [new PathMiddleware('/gzip.html'), gzipMiddleware],
     [new PathMiddleware('/plaintext.html'), plainTextMiddleware],
     [new PathMiddleware('/get.json'), getJSONMiddleware],
     [new PathMiddleware('/form'), formGetMiddleware],
   ];
-  mapTest.set('gets', getMiddlewareArray);
+  setTest.add(getMiddlewareArray);
   // Modify after insertion
   getMiddlewareArray.push(
     [new PathMiddleware({ path: '/script.js' }), scriptMiddleware],
   );
   // Add terminator middleware
   getMiddlewareArray.push(
-    [new PathMiddleware({ path: /\/output.json$/ }), outputMiddleware, 'end'],
+    [new PathMiddleware({ path: /\/output.json$/ }), outputMiddleware],
   );
 
   // Predefined Route
@@ -402,7 +397,7 @@ function setupHandler() {
   ];
 
   // Automatic Path Routing
-  middleware.add([
+  middleware.push([
     MethodMiddleware.GET,
     [new PathMiddleware({ path: /^(\/subpath)\/?.*/, subPath: true }), [
       [new PathMiddleware('/'), outputURLMiddleware],
@@ -425,73 +420,64 @@ function setupHandler() {
   ]);
 
   // Add error handler
-  middleware.add([MethodMiddleware.GET,
+  middleware.push([MethodMiddleware.GET,
     new PathMiddleware('/error'),
     function throwError() {
       throw new Error('unexpected error!');
     }]);
-  middleware.add([
+  middleware.push([
     MethodMiddleware.GET,
     new PathMiddleware('/catch'),
     function throwError() {
       throw new Error('EXCEPTION!');
     },
     {
-      onError: ({ err }) => {
+      onError: ({ error }) => {
         console.log('I catch and rethrow errors.');
-        throw new Error(err);
+        throw error;
       },
     },
     {
-      onError: ({ err }) => {
-        console.warn('Caught exception. Allowing continue.', err);
-        return Promise.resolve('continue');
+      onError: ({ error }) => {
+        console.warn('Caught exception. Allowing continue.', error);
+        return HttpHandler.CONTINUE;
       },
     },
-    function responseAfterError({ res }) {
-      res.status = 200;
-      res.stream.end('Error was caught.');
-      return 'end';
-    },
-
+    'Error was caught.'
   ]);
 
   // Inline middleware and filter adding
-  middleware.add({
-    myPostMiddlewares: [
+  middleware.push(
+    [
       MethodMiddleware.POST,
       [new PathMiddleware('/input.json'), inputMiddleware],
+      [new PathMiddleware('/echo.json'), echoMiddleware],
       [new PathMiddleware('/form'), formPostMiddleware],
     ],
-    inlineFilter: [
+    [
       () => SHOULD_CRASH,
       () => { throw new Error('Break not called!'); },
     ],
-    corsTest: [
+    [
       MethodMiddleware.GET,
       new PathMiddleware('/cors.html'),
       corsTest,
-      'end',
+      HttpHandler.END,
     ],
-    unknownFile({ req, res }) {
-      console.log('Unknown', req.url.toString());
-      res.status = 404;
-      res.stream.end();
-      return 'end';
+    ({ request }) => {
+      console.log('Unknown', request.url);
+      return 404;
     },
-  });
+  );
 
   errorHandlers.push({
-    onError({ res, err }) {
+    onError({ error }) {
       console.error('Uncaught exception');
-      console.error(err);
-      res.status = 500;
-      res.stream.end();
-      return 'end';
+      console.error(error);
+      return 500;
     },
   });
   console.dir([
-    preprocessors,
     middleware,
     errorHandlers,
   ], { colors: true, depth: null });

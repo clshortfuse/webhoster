@@ -1,4 +1,4 @@
-import http2 from 'http2';
+import http2 from 'node:http2';
 
 import { HTTPS_HOST, HTTPS_PORT } from './constants.js';
 
@@ -24,9 +24,9 @@ export function stop() {
       resolve();
       return;
     }
-    http2Server.close((err) => {
-      if (err) {
-        reject(err);
+    http2Server.close((error) => {
+      if (error) {
+        reject(error);
         return;
       }
       resolve();

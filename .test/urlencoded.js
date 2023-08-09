@@ -1,33 +1,37 @@
+/**
+ *
+ * @param buffer
+ */
 function decode(buffer) {
   const sequences = [];
   let startIndex = 0;
-  for (let i = 0; i < buffer.length; i += 1) {
-    if (buffer[i] === 0x26) {
-      sequences.push(buffer.subarray(startIndex, i));
-      startIndex = i + 1;
+  for (let index = 0; index < buffer.length; index += 1) {
+    if (buffer[index] === 0x26) {
+      sequences.push(buffer.subarray(startIndex, index));
+      startIndex = index + 1;
     }
-    if (i === buffer.length - 1) {
-      sequences.push(buffer.subarray(startIndex, i));
+    if (index === buffer.length - 1) {
+      sequences.push(buffer.subarray(startIndex, index));
     }
   }
   console.log(buffer);
   console.log(sequences);
   /** @type {[string, string][]} */
   const output = [];
-  sequences.forEach((bytes) => {
-    if (!bytes.length) return;
+  for (const bytes of sequences) {
+    if (!bytes.length) continue;
 
     // Find 0x3D and replace 0x2B in one loop for better performance
     let indexOf0x3D = -1;
-    for (let i = 0; i < bytes.length; i += 1) {
-      switch (bytes[i]) {
+    for (let index = 0; index < bytes.length; index += 1) {
+      switch (bytes[index]) {
         case 0x3D:
           if (indexOf0x3D === -1) {
-            indexOf0x3D = i;
+            indexOf0x3D = index;
           }
           break;
         case 0x2B:
-          bytes[i] = 0x20;
+          bytes[index] = 0x20;
           break;
         default:
       }
@@ -44,7 +48,7 @@ function decode(buffer) {
     const nameString = decodeURIComponent(name.toString('utf-8'));
     const valueString = decodeURIComponent(value.toString('utf-8'));
     output.push([nameString, valueString]);
-  });
+  }
   return output;
 }
 

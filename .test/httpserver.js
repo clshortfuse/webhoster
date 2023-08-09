@@ -1,4 +1,4 @@
-import http from 'http';
+import http from 'node:http';
 
 import { HTTP_HOST, HTTP_PORT } from './constants.js';
 
@@ -21,9 +21,9 @@ export function stop() {
       resolve();
       return;
     }
-    httpServer.close((err) => {
-      if (err) {
-        reject(err);
+    httpServer.close((error) => {
+      if (error) {
+        reject(error);
         return;
       }
       resolve();
