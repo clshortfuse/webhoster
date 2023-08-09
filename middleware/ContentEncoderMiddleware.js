@@ -1,5 +1,6 @@
 import { promisify } from 'node:util';
 import {
+  // @ts-expect-error Bad types
   BrotliCompress, Deflate, Gzip,
   constants as ZlibContants,
   brotliCompress, brotliCompressSync,
@@ -158,18 +159,21 @@ export default class ContentEncoderMiddleware {
     let newStream;
     switch (encoding) {
       case 'br':
+        // @ts-expect-error Bad types
         newStream = new BrotliCompress({
           chunkSize: this.chunkSize,
           flush: isEventStream ? BROTLI_OPERATION_FLUSH : undefined,
         });
         break;
       case 'gzip':
+        // @ts-expect-error Bad types
         newStream = new Gzip({
           chunkSize: this.chunkSize,
           flush: isEventStream ? Z_SYNC_FLUSH : undefined,
         });
         break;
       case 'deflate':
+        // @ts-expect-error Bad types
         newStream = new Deflate({
           chunkSize: this.chunkSize,
           flush: isEventStream ? Z_SYNC_FLUSH : undefined,

@@ -42,8 +42,8 @@ export default class ResponseHeaders extends HeadersHandler {
 
   /** @type {ProxyHandler<CookieObject>} */
   #cookieObjectProxyHandler = {
-    set: (cookieTarget, cookieProp, cookieValue, receiver) => {
-      Reflect.set(cookieTarget, cookieProp, cookieValue, receiver);
+    set: (cookieTarget, cookieProperty, cookieValue, receiver) => {
+      Reflect.set(cookieTarget, cookieProperty, cookieValue, receiver);
       const index = this.cookieEntries.findIndex((entry) => entry.toString() === cookieTarget.toString());
       if (index !== -1) {
         // Force reflection
@@ -162,7 +162,7 @@ export default class ResponseHeaders extends HeadersHandler {
   }
 
   get cookies() {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
     const instance = this;
     return {
       /**
@@ -203,23 +203,21 @@ export default class ResponseHeaders extends HeadersHandler {
        * @param {CookieDetails} [details]
        * @return {CookieObject[]}
        */
-      findAll(details = {}) {
-        return instance.cookieEntries
-          .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => {
-            if ((key in details) === false) {
-              return true;
-            }
-            switch (key) {
-              case 'expires':
-                return details.expires?.getTime() === cookieObject.expires?.getTime();
-              case 'path':
-                return (details.path ?? '') === (cookieObject.path ?? '');
-              default:
-                return details[key] === cookieObject[key];
-            }
-          }))
-          .sort((a, b) => ((b?.path?.length ?? 0) - (a?.path?.length ?? 0)));
-      },
+      findAll: (details = {}) => this.cookieEntries
+        .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => {
+          if ((key in details) === false) {
+            return true;
+          }
+          switch (key) {
+            case 'expires':
+              return details.expires?.getTime() === cookieObject.expires?.getTime();
+            case 'path':
+              return (details.path ?? '') === (cookieObject.path ?? '');
+            default:
+              return details[key] === cookieObject[key];
+          }
+        }))
+        .sort((a, b) => ((b?.path?.length ?? 0) - (a?.path?.length ?? 0))),
       /**
        * @param {string|CookieDetails} cookie
        * @return {CookieObject}
@@ -230,14 +228,14 @@ export default class ResponseHeaders extends HeadersHandler {
           path: '',
           ...details,
         });
-        if (!cookieObject) {
-          cookieObject = new Proxy(new CookieObject(details), instance.#cookieObjectProxyHandler);
-          instance.cookieEntries.push(cookieObject);
-        } else {
+        if (cookieObject) {
           for (const key of COOKIE_DETAIL_KEYS) {
-            // @ts-ignore Coerce
+            // @ts-expect-error Coerce
             cookieObject[key] = details[key];
           }
+        } else {
+          cookieObject = new Proxy(new CookieObject(details), instance.#cookieObjectProxyHandler);
+          instance.cookieEntries.push(cookieObject);
         }
         return cookieObject;
       },
@@ -291,46 +289,44 @@ export default class ResponseHeaders extends HeadersHandler {
       if (!this.headers['set-cookie']) {
         this.headers['set-cookie'] = [];
       }
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const instance = this;
       /** @type {CookieObject[]} */
-      const values = instance.headers['set-cookie']
+      const values = this.headers['set-cookie']
         .map((/** @type {string} */ setCookie) => new Proxy(
           new CookieObject(setCookie),
-          instance.#cookieObjectProxyHandler,
+          this.#cookieObjectProxyHandler,
         ));
       this.#setCookiesProxy = new Proxy(values, {
-        get: (arrayTarget, arrayProp, receiver) => {
-          if (typeof arrayProp !== 'string') {
-            return Reflect.get(arrayTarget, arrayProp, receiver);
+        get: (arrayTarget, arrayProperty, receiver) => {
+          if (typeof arrayProperty !== 'string') {
+            return Reflect.get(arrayTarget, arrayProperty, receiver);
           }
-          if (arrayProp === 'length') {
-            return instance.headers['set-cookie'].length;
+          if (arrayProperty === 'length') {
+            return this.headers['set-cookie'].length;
           }
-          if (Number.isNaN(Number.parseInt(arrayProp, 10))) {
-            return Reflect.get(arrayTarget, arrayProp, receiver);
+          if (Number.isNaN(Number.parseInt(arrayProperty, 10))) {
+            return Reflect.get(arrayTarget, arrayProperty, receiver);
           }
-          const entry = instance.headers['set-cookie'][arrayProp];
-          if (typeof entry === 'undefined') {
+          const entry = this.headers['set-cookie'][arrayProperty];
+          if (entry === undefined) {
             return entry;
           }
-          if (arrayProp in arrayTarget === false) {
+          if (arrayProperty in arrayTarget === false) {
             Reflect.set(
               arrayTarget,
-              arrayProp,
-              new Proxy(new CookieObject(entry), instance.#cookieObjectProxyHandler),
+              arrayProperty,
+              new Proxy(new CookieObject(entry), this.#cookieObjectProxyHandler),
             );
           }
-          return Reflect.get(arrayTarget, arrayProp, receiver);
+          return Reflect.get(arrayTarget, arrayProperty, receiver);
         },
-        set: (arrayTarget, arrayProp, value, receiver) => {
-          Reflect.set(arrayTarget, arrayProp, value, receiver);
-          if (typeof arrayProp !== 'string') return true;
-          if (arrayProp === 'length') {
-            Reflect.set(instance.headers['set-cookie'], arrayProp, value);
+        set: (arrayTarget, arrayProperty, value, receiver) => {
+          Reflect.set(arrayTarget, arrayProperty, value, receiver);
+          if (typeof arrayProperty !== 'string') return true;
+          if (arrayProperty === 'length') {
+            Reflect.set(this.headers['set-cookie'], arrayProperty, value);
           }
           if (value instanceof CookieObject) {
-            instance.headers['set-cookie'][arrayProp] = value.toString();
+            this.headers['set-cookie'][arrayProperty] = value.toString();
           }
           return true;
         },

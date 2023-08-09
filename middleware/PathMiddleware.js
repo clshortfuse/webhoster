@@ -29,23 +29,6 @@ import { posix } from 'node:path';
  */
 
 export default class PathMiddleware {
-  /** @param {PathMiddlewareOptions|PathEntry|PathEntry[]} options */
-  constructor(options) {
-    if (Array.isArray(options)) {
-      this.path = options;
-      this.absolute = false;
-      this.subPath = false;
-    } else if (typeof options === 'string' || options instanceof RegExp) {
-      this.path = [options];
-      this.absolute = false;
-      this.subPath = false;
-    } else {
-      this.path = Array.isArray(options.path) ? options.path : [options.path];
-      this.absolute = options.absolute === true;
-      this.subPath = options.subPath === true;
-    }
-  }
-
   /**
    * @param {PathEntry|PathEntry[]} entry
    */
@@ -104,11 +87,11 @@ export default class PathMiddleware {
     let newLength = 0;
     /* eslint-disable no-labels */
     historyLoop: {
-      for (let i = 0; i < path.history.length; i++) {
-        const item = path.history[i];
+      for (const item of path.history) {
         if (item.treeIndex.length >= treeIndex.length) break;
-        for (let j = 0; j < item.treeIndex.length - 1; j++) {
-          if (item.treeIndex[j] !== treeIndex[j]) break historyLoop;
+        // TODO: Confirm length-1
+        for (let index = 0; index < item.treeIndex.length - 1; index++) {
+          if (item.treeIndex[index] !== treeIndex[index]) break historyLoop;
         }
         paths.push(item.base);
         newLength++;
@@ -123,13 +106,29 @@ export default class PathMiddleware {
     return posix.join(...paths);
   }
 
+  /** @param {PathMiddlewareOptions|PathEntry|PathEntry[]} options */
+  constructor(options) {
+    if (Array.isArray(options)) {
+      this.path = options;
+      this.absolute = false;
+      this.subPath = false;
+    } else if (typeof options === 'string' || options instanceof RegExp) {
+      this.path = [options];
+      this.absolute = false;
+      this.subPath = false;
+    } else {
+      this.path = Array.isArray(options.path) ? options.path : [options.path];
+      this.absolute = options.absolute === true;
+      this.subPath = options.subPath === true;
+    }
+  }
+
   /** @type {MiddlewareFunction} */
   execute(transaction) {
     const currentPath = this.absolute ? '' : PathMiddleware.ReadPathState(transaction);
     const comparison = this.absolute ? transaction.request.pathname : `/${posix.relative(currentPath, transaction.request.pathname)}`;
 
-    for (let i = 0; i < this.path.length; i++) {
-      const path = this.path[i];
+    for (const path of this.path) {
       const result = PathMiddleware.test(comparison, path);
       if (result) {
         if (this.subPath) {

@@ -8,7 +8,7 @@ import {
 export type Middleware =
   | IMiddleware
   | MiddlewareFunction
-  | Middleware[] 
+  | Middleware[]
   | MiddlewareContent
   | Set<Middleware>
   | MiddlewareFunctionResultType

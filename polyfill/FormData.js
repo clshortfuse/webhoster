@@ -16,9 +16,7 @@ export default class FormData {
    * @param {string} s
    * @return {string}
    */
-  static #scalarValue(s) {
-    return String(s);
-  }
+  static #scalarValue = String;
 
   /**
    * @param {string} name
@@ -37,6 +35,7 @@ export default class FormData {
     if (typeof File === 'undefined') {
       if (!('name' in value) && !('lastModified' in value)) {
         /** @type {File} */
+        // eslint-disable-next-line unicorn/prefer-spread
         const file = Object.defineProperties(value.slice(), {
           name: {
             value: filename === undefined ? 'blob' : filename,

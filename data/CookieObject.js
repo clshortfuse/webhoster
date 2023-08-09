@@ -25,8 +25,8 @@ export default class CookieObject {
   static parse(cookieString) {
     /** @type {Partial<CookieDetails>} */
     const options = {};
-    // eslint-disable-next-line github/array-foreach
-    cookieString.split(';').forEach((pair, index) => {
+    let index0 = true;
+    for (const pair of cookieString.split(';')) {
       const indexOfEquals = pair.indexOf('=');
       let key;
       let value;
@@ -42,20 +42,21 @@ export default class CookieObject {
       if (firstQuote !== -1 && lastQuote !== -1) {
         value = value.slice(firstQuote + 1, lastQuote);
       }
-      if (index === 0) {
+      if (index0) {
+        index0 = false;
         options.name = key;
         if (value != null) {
           options.value = value;
         }
-        return;
+        continue;
       }
       switch (key.toLowerCase()) {
         case 'expires':
           options.expires = new Date(value);
-          return;
+          break;
         case 'max-age':
           options.maxAge = Number.parseInt(value, 10);
-          return;
+          break;
         case 'domain':
           options.domain = value;
           break;
@@ -69,22 +70,22 @@ export default class CookieObject {
           options.httpOnly = true;
           break;
         case 'samesite':
-          // @ts-ignore No cast
+          // @ts-expect-error No cast
           options.sameSite = value;
           break;
         default:
       }
-    });
+    }
     return new CookieObject(options);
   }
 
   toString() {
     // eslint-disable-next-line prefer-template
     return (`${this.name ?? ''}=${this.value ?? ''}`)
-      + (this.expires != null ? `; Expires=${this.expires.toUTCString()}` : '')
-      + (this.maxAge != null ? `; Max-Age=${this.maxAge}` : '')
-      + (this.domain != null ? `; Domain=${this.domain}` : '')
-      + (this.path != null ? `; Path=${this.path}` : '')
+      + (this.expires == null ? '' : `; Expires=${this.expires.toUTCString()}`)
+      + (this.maxAge == null ? '' : `; Max-Age=${this.maxAge}`)
+      + (this.domain == null ? '' : `; Domain=${this.domain}`)
+      + (this.path == null ? '' : `; Path=${this.path}`)
       + (this.secure ? '; Secure' : '')
       + (this.httpOnly ? '; HttpOnly' : '')
       + (this.sameSite ? `; SameSite=${this.sameSite}` : '');

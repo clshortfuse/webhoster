@@ -7,6 +7,8 @@ import HttpHandler from '../lib/HttpHandler.js';
 export const SERVER_ALREADY_CREATED = 'SERVER_ALREADY_CREATED';
 
 /** @typedef {import('tls').TlsOptions} TlsOptions */
+/** @typedef {import('http2').Http2Session} Http2Session */
+/** @typedef {import('http2').Http2Stream} Http2Stream */
 
 /**
  * @typedef {Object} HttpListenerOptions
@@ -109,27 +111,27 @@ export default class HttpListener {
             console.warn('HTTP socket (unknown) timed out.');
             return;
           }
-          const identity = `${socket.remoteFamily}:${socket.remoteAddress}:${socket.remotePort}`;
+          // const identity = `${socket.remoteFamily}:${socket.remoteAddress}:${socket.remotePort}`;
           // console.warn(`HTTP socket ${identity} timed out.`);
           socket.destroy(new Error('SOCKET_TIMEOUT'));
         });
 
-        this.httpServer.addListener('error', (err) => {
-          console.error('HTTP server error', err);
+        this.httpServer.addListener('error', (error) => {
+          console.error('HTTP server error', error);
         });
-        this.httpServer.addListener('clientError', (err, socket) => {
-          if (err?.code === 'ECONNRESET') {
+        this.httpServer.addListener('clientError', (error, socket) => {
+          if (error?.code === 'ECONNRESET') {
             // console.warn('HTTP client connection reset.');
             return;
           }
-          console.error('HTTP client error', err);
+          console.error('HTTP client error', error);
           if (socket.destroyed || socket.writableEnded) return;
           socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         });
 
-        this.httpServer.addListener('request', (req, res) => {
-          this.httpHandler.handleHttp1Request(req, res).catch((err) => {
-            console.error('HTTP1 handler failed', err);
+        this.httpServer.addListener('request', (request, response) => {
+          this.httpHandler.handleHttp1Request(request, response).catch((error) => {
+            console.error('HTTP1 handler failed', error);
           });
         });
         resolve(this.httpServer);
@@ -155,27 +157,27 @@ export default class HttpListener {
             // console.warn('HTTPS socket (unknown) timed out.');
             return;
           }
-          const identity = `${socket.remoteFamily}:${socket.remoteAddress}:${socket.remotePort}`;
+          // const identity = `${socket.remoteFamily}:${socket.remoteAddress}:${socket.remotePort}`;
           // console.error(`HTTPS socket ${identity} timed out.`);
           socket.destroy(new Error('SOCKET_TIMEOUT'));
         });
 
-        this.httpsServer.addListener('error', (err) => {
-          console.error('HTTPS server error', err);
+        this.httpsServer.addListener('error', (error) => {
+          console.error('HTTPS server error', error);
         });
-        this.httpsServer.addListener('clientError', (err, socket) => {
-          if (err?.code === 'ECONNRESET') {
+        this.httpsServer.addListener('clientError', (error, socket) => {
+          if (error?.code === 'ECONNRESET') {
             console.warn('HTTPS client connection reset.');
             return;
           }
-          console.error('HTTPS client error', err);
+          console.error('HTTPS client error', error);
           if (socket.destroyed) return;
           socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         });
 
-        this.httpsServer.addListener('request', (req, res) => {
-          this.httpHandler.handleHttp1Request(req, res).catch((err) => {
-            console.error('HTTPS handler failed', err);
+        this.httpsServer.addListener('request', (request, response) => {
+          this.httpHandler.handleHttp1Request(request, response).catch((error) => {
+            console.error('HTTPS handler failed', error);
           });
         });
         resolve(this.httpsServer);
@@ -194,23 +196,23 @@ export default class HttpListener {
       }, () => {
         this.http2Server.removeListener('error', reject);
 
-        /** @type {Set<WeakRef<import('node:http2').Http2Session>} */
+        /** @type {Set<WeakRef<Http2Session>>} */
         const sessions = new Set();
-        /** @type {WeakMap<import('node:http2').Http2Session, {timestamp:number, identity:string}>} */
+        /** @type {WeakMap<Http2Session, {timestamp:number, identity:string}>} */
         const sessionMetadata = new WeakMap();
-        /** @type {Set<WeakRef<import('node:http2').Http2Stream>} */
+        /** @type {Set<WeakRef<Http2Stream>>} */
         const streams = new Set();
-        /** @type {WeakMap<import('node:http2').Http2Stream, {timestamp:number, identity:string, path:string}>} */
+        /** @type {WeakMap<Http2Stream, {timestamp:number, identity:string, path:string}>} */
         const streamMetadata = new WeakMap();
         setInterval(() => {
           if (global.gc) {
             console.log('Perfoming garbage collection.');
             global.gc();
           }
-          for (const ref of sessions) {
-            const session = ref.deref();
+          for (const reference of sessions) {
+            const session = reference.deref();
             if (!session) {
-              sessions.delete(ref);
+              sessions.delete(reference);
               continue;
             }
             const metadata = sessionMetadata.get(session);
@@ -220,10 +222,10 @@ export default class HttpListener {
               console.log('SESSION alive from', metadata.identity, 'since', metadata.timestamp);
             }
           }
-          for (const ref of streams) {
-            const stream = ref.deref();
+          for (const reference of streams) {
+            const stream = reference.deref();
             if (!stream) {
-              streams.delete(ref);
+              streams.delete(reference);
               continue;
             }
             const metadata = streamMetadata.get(stream);
@@ -252,28 +254,28 @@ export default class HttpListener {
         });
 
         // Error Handlers
-        this.http2Server.addListener('error', (err) => {
-          console.error('HTTP/2 server error', err);
+        this.http2Server.addListener('error', (error) => {
+          console.error('HTTP/2 server error', error);
         });
-        this.http2Server.addListener('clientError', (err, socket) => {
+        this.http2Server.addListener('clientError', (error, socket) => {
           // No clear way to signal back to client why a socket has failed because
           // it's unsure if it's HTTP1 or HTTP2. Just destroy and log server-side.
-          if (err?.code === 'ECONNRESET') {
+          if (error?.code === 'ECONNRESET') {
             // console.warn('HTTP/2 client connection reset.');
           } else {
-            console.error('HTTP/2 client error', err);
+            console.error('HTTP/2 client error', error);
           }
-          if (!socket.destroyed) socket.destroy(err);
+          if (!socket.destroyed) socket.destroy(error);
         });
-        this.http2Server.addListener('sessionError', (err, session) => {
-          if (err?.code === 'ECONNRESET') {
+        this.http2Server.addListener('sessionError', (error, session) => {
+          if (error?.code === 'ECONNRESET') {
             // console.warn('HTTP/2 client connection reset.');
-          } else if (err?.message === 'SOCKET_TIMEOUT') {
+          } else if (error?.message === 'SOCKET_TIMEOUT') {
             // Server generated error
           } else {
-            console.error('HTTP/2 sessionError error', err);
+            console.error('HTTP/2 sessionError error', error);
           }
-          if (!session.destroyed) session.destroy(err);
+          if (!session.destroyed) session.destroy(error);
         });
 
         this.http2Server.addListener('session', (session) => {
@@ -291,11 +293,11 @@ export default class HttpListener {
             if (session.destroyed) {
               clearInterval(pingInterval);
             } else {
-              session.ping((err) => {
-                if (!err) return;
+              session.ping((error) => {
+                if (!error) return;
                 if (session.destroyed) return;
-                if (err.code === 'ERR_HTTP2_PING_CANCEL') return;
-                console.error(`Ping to ${identity} failed.`, err);
+                if (error.code === 'ERR_HTTP2_PING_CANCEL') return;
+                console.error(`Ping to ${identity} failed.`, error);
               });
             }
           }, 15_000);
@@ -316,21 +318,21 @@ export default class HttpListener {
           stream.setTimeout(300_000, () => {
             stream.destroy(new Error('SOCKET_TIMEOUT'));
           });
-          stream.addListener('error', (err) => {
-            if (err?.code === 'ECONNRESET') {
+          stream.addListener('error', (error) => {
+            if (error?.code === 'ECONNRESET') {
               // console.warn('HTTP/2 stream connection reset.', headers[':path']);
             } else {
-              console.error('HTTP/2 stream error', headers, err);
+              console.error('HTTP/2 stream error', headers, error);
             }
           });
-          this.httpHandler.handleHttp2Stream(stream, headers).catch((err) => {
-            console.error('HTTP2 handler failed.', err);
+          this.httpHandler.handleHttp2Stream(stream, headers).catch((error) => {
+            console.error('HTTP2 handler failed.', error);
           });
         });
-        this.http2Server.addListener('request', (req, res) => {
-          if (req.httpVersionMajor >= 2) return;
-          // @ts-ignore Ignore typings
-          req.setTimeout(300_000, (socket) => {
+        this.http2Server.addListener('request', (request, res) => {
+          if (request.httpVersionMajor >= 2) return;
+          // @ts-expect-error Bad typings
+          request.setTimeout(300_000, (socket) => {
             if (!socket) {
               // console.warn('HTTP1 in HTTP2 request (unknown) timed out.');
               return;
@@ -339,6 +341,7 @@ export default class HttpListener {
             // console.warn(`HTTP1 in HTTP2 request ${identity} timed out.`);
             socket.destroy(new Error('SOCKET_TIMEOUT'));
           });
+          // @ts-expect-error Bad typings
           res.setTimeout(300_000, (socket) => {
             if (!socket) {
               // console.warn('HTTP1 in HTTP2 response (unknown) timed out.');
@@ -348,28 +351,28 @@ export default class HttpListener {
             // console.warn(`HTTP1 in HTTP2 response ${identity} timed out.`);
             socket.destroy(new Error('SOCKET_TIMEOUT'));
           });
-          req.addListener('error', (err) => {
-            if (err?.code === 'ECONNRESET') {
+          request.addListener('error', (error) => {
+            if (error?.code === 'ECONNRESET') {
               // console.warn('Request stream connection reset.', req.url);
             } else {
-              console.error('Request stream error.', req.url, req.headers, err);
+              console.error('Request stream error.', request.url, request.headers, error);
             }
-            if (!req.destroyed) {
-              req.destroy(err);
+            if (!request.destroyed) {
+              request.destroy(error);
             }
           });
-          res.addListener('error', (err) => {
-            if (err?.code === 'ECONNRESET') {
+          res.addListener('error', (error) => {
+            if (error?.code === 'ECONNRESET') {
               // console.warn('Response stream connection reset.', req.url);
             } else {
-              console.error('Response stream error', req.url, req.headers, err);
+              console.error('Response stream error', request.url, request.headers, error);
             }
             if (!res.destroyed) {
-              res.destroy(err);
+              res.destroy(error);
             }
           });
-          this.httpHandler.handleHttp1Request(req, res).catch((err) => {
-            console.error('HTTP1 in HTTP2 handler failed.', err);
+          this.httpHandler.handleHttp1Request(request, res).catch((error) => {
+            console.error('HTTP1 in HTTP2 handler failed.', error);
           });
         });
 
@@ -386,9 +389,9 @@ export default class HttpListener {
         resolve();
         return;
       }
-      this.httpServer.close((err) => {
-        if (err) {
-          reject(err);
+      this.httpServer.close((error) => {
+        if (error) {
+          reject(error);
           return;
         }
         resolve();
@@ -403,12 +406,12 @@ export default class HttpListener {
         resolve();
         return;
       }
-      this.httpsServer.close((err) => {
-        if (err) {
-          reject(err);
-          return;
+      this.httpsServer.close((error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }
@@ -420,18 +423,23 @@ export default class HttpListener {
         resolve();
         return;
       }
-      this.http2Server.close((err) => {
-        if (err) {
-          reject(err);
-          return;
+      this.http2Server.close((error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }
 
   /**
-   * @return {Promise<[import('node:http').Server, import('node:https').Server, import('node:http2').Http2SecureServer]>}
+   * @return {Promise<[
+   *  import('node:http').Server,
+   *  import('node:https').Server,
+   *  import('node:http2').Http2SecureServer
+   * ]>
+   * }
    */
   startAll() {
     return Promise.all([

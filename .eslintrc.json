@@ -58,6 +58,7 @@
     "no-continue": "off",
     "no-restricted-syntax": "off",
     "no-return-await": "off",
+    "unicorn/explicit-length-check": "off",
     "unicorn/filename-case": "off",
     "unicorn/no-null": "off",
     "unicorn/no-useless-switch-case": "off",

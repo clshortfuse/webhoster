@@ -38,8 +38,8 @@ export default class MethodMiddleware {
 
   /** @type {MiddlewareFunction} */
   execute({ request }) {
-    for (let i = 0; i < this.method.length; i++) {
-      if (MethodMiddleware.test(request.method, this.method[i])) {
+    for (const method of this.method) {
+      if (MethodMiddleware.test(request.method, method)) {
         return true;
       }
     }

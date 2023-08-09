@@ -39,13 +39,13 @@ export default class SendJsonMiddleware {
       case 'ucs2':
       case 'utf16le':
         return 'utf16le';
-      default:
-      case 'utf-8':
-      case 'utf8':
-        return 'utf-8';
       case 'base64':
       case 'hex':
         return /** @type {BufferEncoding} */ (charset);
+      case 'utf-8':
+      case 'utf8':
+      default:
+        return 'utf-8';
     }
   }
 

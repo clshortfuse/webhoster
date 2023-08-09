@@ -85,7 +85,7 @@ export default class HashMiddleware {
       this.addTransformStream(response);
       return;
     }
-    if (!Buffer.isBuffer(response.body) || response.body.byteLength === 0) return;
+    if (!Buffer.isBuffer(response.body) || !response.body.byteLength) return;
 
     const { algorithm, digest } = this;
     const hash = createHash(algorithm).update(response.body).digest(digest);

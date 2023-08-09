@@ -1,6 +1,6 @@
 /** @typedef {import('../types').HttpRequest} HttpRequest */
 
-import { TextDecoder } from 'util';
+import { TextDecoder } from 'node:util';
 import AsyncObject from '../utils/AsyncObject.js';
 import { noop } from '../utils/function.js';
 import RequestHeaders from './RequestHeaders.js';
@@ -43,7 +43,7 @@ export default class RequestReader {
     if (this.#buffer.isBusy() || this.#buffer.hasValue()) return this.#buffer.get();
     this.#buffer.prepare();
     const hp = new RequestHeaders(this.request);
-    let data = Buffer.alloc(Math.min(BUFFER_SIZE, hp.contentLength || BUFFER_SIZE));
+    let data = Buffer.allocUnsafe(Math.min(BUFFER_SIZE, hp.contentLength || BUFFER_SIZE));
     let bytesWritten = 0;
     /** @type {NodeJS.Timeout} */
     let sendPingTimeout = null;
@@ -64,7 +64,7 @@ export default class RequestReader {
           while (newLength < buffer.length + data.length) {
             newLength *= 2;
           }
-          const newBuffer = Buffer.alloc(newLength);
+          const newBuffer = Buffer.allocUnsafe(newLength);
           data.copy(newBuffer);
           data = newBuffer;
         }
@@ -80,12 +80,13 @@ export default class RequestReader {
     this.request.stream.on('end', () => {
       clearTimeout(sendPingTimeout);
       if (data.length > bytesWritten) {
+        // Must partition to clear unsafe allocation
         data = data.subarray(0, bytesWritten);
       }
       this.#buffer.set(data);
     });
-    this.request.stream.on('error', (err) => {
-      this.#buffer.reset(err);
+    this.request.stream.on('error', (error) => {
+      this.#buffer.reset(error);
     });
     return this.#buffer.get();
   }
@@ -93,9 +94,9 @@ export default class RequestReader {
   /** @return {Promise<string>} */
   readString() {
     return this.readBuffer().then((buffer) => {
-      const reqHeaders = new RequestHeaders(this.request);
+      const requestHeaders = new RequestHeaders(this.request);
       // TODO: Compare TextDecoder, Buffer.from(), and StringDecoder performance
-      const decoder = new TextDecoder(reqHeaders.charset || 'utf-8');
+      const decoder = new TextDecoder(requestHeaders.charset || 'utf-8');
       return decoder.decode(buffer);
     });
   }
@@ -116,38 +117,38 @@ export default class RequestReader {
    */
   readUrlEncoded() {
     // https://url.spec.whatwg.org/#urlencoded-parsing
-    const reqHeaders = new RequestHeaders(this.request);
-    const decoder = new TextDecoder(reqHeaders.charset || 'utf-8');
+    const requestHeaders = new RequestHeaders(this.request);
+    const decoder = new TextDecoder(requestHeaders.charset || 'utf-8');
     return this.readBuffer().then((buffer) => {
       const sequences = [];
       let startIndex = 0;
-      for (let i = 0; i < buffer.length; i += 1) {
-        if (buffer[i] === 0x26) {
-          sequences.push(buffer.subarray(startIndex, i));
-          startIndex = i + 1;
+      for (let index = 0; index < buffer.length; index += 1) {
+        if (buffer[index] === 0x26) {
+          sequences.push(buffer.subarray(startIndex, index));
+          startIndex = index + 1;
         }
-        if (i === buffer.length - 1) {
-          sequences.push(buffer.subarray(startIndex, i));
+        if (index === buffer.length - 1) {
+          sequences.push(buffer.subarray(startIndex, index));
         }
       }
       /** @type {[string, string][]} */
       const output = [];
-      sequences.forEach((bytes) => {
-        if (!bytes.length) return;
+      for (const bytes of sequences) {
+        if (bytes.length === 0) continue;
 
         // Find 0x3D and replace 0x2B in one loop for better performance
         let indexOf0x3D = -1;
-        for (let i = 0; i < bytes.length; i += 1) {
-          switch (bytes[i]) {
+        for (let index = 0; index < bytes.length; index += 1) {
+          switch (bytes[index]) {
             case 0x3D:
               if (indexOf0x3D === -1) {
-                indexOf0x3D = i;
+                indexOf0x3D = index;
               }
               break;
             case 0x2B:
               // Replace bytes on original stream for memory conservation
               // eslint-disable-next-line no-param-reassign
-              bytes[i] = 0x20;
+              bytes[index] = 0x20;
               break;
             default:
           }
@@ -164,7 +165,7 @@ export default class RequestReader {
         const nameString = decodeURIComponent(decoder.decode(name));
         const valueString = decodeURIComponent(decoder.decode(value));
         output.push([nameString, valueString]);
-      });
+      }
       return output;
     });
   }
@@ -184,8 +185,8 @@ export default class RequestReader {
    * @return {Promise<Object<string, any>|null>}
    */
   readObject() {
-    const reqHeaders = new RequestHeaders(this.request);
-    const mediaType = reqHeaders.mediaType?.toLowerCase() ?? '';
+    const requestHeaders = new RequestHeaders(this.request);
+    const mediaType = requestHeaders.mediaType?.toLowerCase() ?? '';
     switch (mediaType) {
       case 'application/json':
         return this.readJSON();
@@ -201,8 +202,8 @@ export default class RequestReader {
    * @return {Promise<Object<string,any>|string|Buffer>}
    */
   read() {
-    const reqHeaders = new RequestHeaders(this.request);
-    const mediaType = reqHeaders.mediaType?.toLowerCase() ?? '';
+    const requestHeaders = new RequestHeaders(this.request);
+    const mediaType = requestHeaders.mediaType?.toLowerCase() ?? '';
     switch (mediaType) {
       case 'application/json':
         return this.readJSON();
