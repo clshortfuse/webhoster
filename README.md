@@ -215,7 +215,7 @@ async function checkToken({request, response, locals}) {
   }
   /**
    * Since we want the logic to continue to the next step,
-   * We can either allow the function  to implicitly return `undefined`
+   * We can either allow the function to implicitly return `undefined`
    * or explicitly use any of the following:
    *  * return undefined;
    *  * return true;
