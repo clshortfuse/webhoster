@@ -3,12 +3,13 @@ import { PassThrough, Readable } from 'node:stream';
 
 import test from 'ava';
 
+import HttpHandler from '../../../lib/HttpHandler.js';
 import HttpRequest from '../../../lib/HttpRequest.js';
 import {
   getTestBinaryStream, getTestHash, getTestString, getTestTextStream,
 } from '../../fixtures/stream.js';
 
-test('HttpRequest.readable', async (t) => {
+test('HttpRequest.body()', async (t) => {
   const request = new HttpRequest({ stream: getTestBinaryStream() });
 
   t.false(request.bodyUsed);
@@ -21,13 +22,13 @@ test('HttpRequest.readable', async (t) => {
 
   if (!ReadableStream || 'toWeb' in Readable === false) {
     t.log('Not supported.');
-    const error = t.throws(() => request.readable, { instanceOf: Error });
+    const error = t.throws(() => request.body, { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
     t.false(request.bodyUsed);
     return;
   }
 
-  const stream = request.readable;
+  const stream = request.body;
   t.true(request.bodyUsed);
   t.true(request.stream.readable);
   t.false(request.stream.readableEnded);
@@ -45,11 +46,12 @@ test('HttpRequest.readable', async (t) => {
   t.true(request.stream.readableEnded);
 });
 
-test('HttpRequest.readable - GET', (t) => {
+test('HttpRequest.body() - GET', (t) => {
   const request = new HttpRequest({ method: 'GET' });
 
   t.false(request.bodyUsed);
-  t.is(request.readable, null);
+  const { body } = request;
+  t.is(body, null);
   t.false(request.bodyUsed);
 });
 
@@ -89,7 +91,7 @@ test('HttpRequest.buffer() - MAX_BUFFER_SIZE_REACHED', async (t) => {
   request.MIN_INITIAL_BUFFER_SIZE = 64;
   request.MAX_INITIAL_BUFFER_SIZE = 128;
   request.MAX_BUFFER_SIZE = 1024;
-  const error = await t.throwsAsync(async () => await request.buffer());
+  const error = await t.throwsAsync(() => request.buffer());
   t.is(error.message, 'MAX_BUFFER_SIZE_REACHED');
 });
 
@@ -185,7 +187,7 @@ test('HttpRequest.blob()', async (t) => {
 
   if (!BlobClass && (!streamConsumers || !streamConsumers.blob)) {
     t.log('Not supported.');
-    const error = await t.throwsAsync(async () => await request.blob(), { instanceOf: Error });
+    const error = await t.throwsAsync(() => request.blob(), { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
     t.false(request.bodyUsed);
     return;
@@ -234,7 +236,7 @@ test('HttpRequest.blob() - no content-type', async (t) => {
 
   if (!BlobClass && (!streamConsumers || !streamConsumers.blob)) {
     t.log('Not supported.');
-    const error = await t.throwsAsync(async () => await request.blob(), { instanceOf: Error });
+    const error = await t.throwsAsync(() => request.blob(), { instanceOf: Error });
     t.is(error.message, 'NOT_SUPPORTED');
     t.false(request.bodyUsed);
     return;
@@ -346,9 +348,8 @@ test('HttpRequest.formData - error', async (t) => {
 });
 
 test('HttpRequest.read() - GET', async (t) => {
-  const url = 'http://my.domain.name/pathname?foo=bar&baz=qux&q1=a&q1=b#hash';
-  const parsedURL = new URL(url);
-  const request = new HttpRequest({ method: 'GET', url, query: parsedURL.search });
+  const parsedUrl = HttpHandler.parseURL('http', 'my.domain.name', 'pathname?foo=bar&baz=qux&q1=a&q1=b#hash');
+  const request = new HttpRequest({ method: 'GET', ...parsedUrl });
 
   /** @type {URLSearchParams} */
   const data = await request.read();

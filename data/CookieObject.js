@@ -25,8 +25,7 @@ export default class CookieObject {
   static parse(cookieString) {
     /** @type {Partial<CookieDetails>} */
     const options = {};
-    let index0 = true;
-    for (const pair of cookieString.split(';')) {
+    for (const [index, pair] of cookieString.split(';').entries()) {
       const indexOfEquals = pair.indexOf('=');
       let key;
       let value;
@@ -42,8 +41,7 @@ export default class CookieObject {
       if (firstQuote !== -1 && lastQuote !== -1) {
         value = value.slice(firstQuote + 1, lastQuote);
       }
-      if (index0) {
-        index0 = false;
+      if (index === 0) {
         options.name = key;
         if (value != null) {
           options.value = value;
@@ -53,10 +51,10 @@ export default class CookieObject {
       switch (key.toLowerCase()) {
         case 'expires':
           options.expires = new Date(value);
-          break;
+          continue;
         case 'max-age':
           options.maxAge = Number.parseInt(value, 10);
-          break;
+          continue;
         case 'domain':
           options.domain = value;
           break;

@@ -203,21 +203,23 @@ export default class ResponseHeaders extends HeadersHandler {
        * @param {CookieDetails} [details]
        * @return {CookieObject[]}
        */
-      findAll: (details = {}) => this.cookieEntries
-        .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => {
-          if ((key in details) === false) {
-            return true;
-          }
-          switch (key) {
-            case 'expires':
-              return details.expires?.getTime() === cookieObject.expires?.getTime();
-            case 'path':
-              return (details.path ?? '') === (cookieObject.path ?? '');
-            default:
-              return details[key] === cookieObject[key];
-          }
-        }))
-        .sort((a, b) => ((b?.path?.length ?? 0) - (a?.path?.length ?? 0))),
+      findAll(details = {}) {
+        return instance.cookieEntries
+          .filter((cookieObject) => COOKIE_DETAIL_KEYS.every((key) => {
+            if ((key in details) === false) {
+              return true;
+            }
+            switch (key) {
+              case 'expires':
+                return details.expires?.getTime() === cookieObject.expires?.getTime();
+              case 'path':
+                return (details.path ?? '') === (cookieObject.path ?? '');
+              default:
+                return details[key] === cookieObject[key];
+            }
+          }))
+          .sort((a, b) => ((b?.path?.length ?? 0) - (a?.path?.length ?? 0)));
+      },
       /**
        * @param {string|CookieDetails} cookie
        * @return {CookieObject}
@@ -289,11 +291,13 @@ export default class ResponseHeaders extends HeadersHandler {
       if (!this.headers['set-cookie']) {
         this.headers['set-cookie'] = [];
       }
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const instance = this;
       /** @type {CookieObject[]} */
-      const values = this.headers['set-cookie']
+      const values = instance.headers['set-cookie']
         .map((/** @type {string} */ setCookie) => new Proxy(
           new CookieObject(setCookie),
-          this.#cookieObjectProxyHandler,
+          instance.#cookieObjectProxyHandler,
         ));
       this.#setCookiesProxy = new Proxy(values, {
         get: (arrayTarget, arrayProperty, receiver) => {
@@ -301,12 +305,12 @@ export default class ResponseHeaders extends HeadersHandler {
             return Reflect.get(arrayTarget, arrayProperty, receiver);
           }
           if (arrayProperty === 'length') {
-            return this.headers['set-cookie'].length;
+            return instance.headers['set-cookie'].length;
           }
           if (Number.isNaN(Number.parseInt(arrayProperty, 10))) {
             return Reflect.get(arrayTarget, arrayProperty, receiver);
           }
-          const entry = this.headers['set-cookie'][arrayProperty];
+          const entry = instance.headers['set-cookie'][arrayProperty];
           if (entry === undefined) {
             return entry;
           }
@@ -314,7 +318,7 @@ export default class ResponseHeaders extends HeadersHandler {
             Reflect.set(
               arrayTarget,
               arrayProperty,
-              new Proxy(new CookieObject(entry), this.#cookieObjectProxyHandler),
+              new Proxy(new CookieObject(entry), instance.#cookieObjectProxyHandler),
             );
           }
           return Reflect.get(arrayTarget, arrayProperty, receiver);
@@ -323,10 +327,10 @@ export default class ResponseHeaders extends HeadersHandler {
           Reflect.set(arrayTarget, arrayProperty, value, receiver);
           if (typeof arrayProperty !== 'string') return true;
           if (arrayProperty === 'length') {
-            Reflect.set(this.headers['set-cookie'], arrayProperty, value);
+            Reflect.set(instance.headers['set-cookie'], arrayProperty, value);
           }
           if (value instanceof CookieObject) {
-            this.headers['set-cookie'][arrayProperty] = value.toString();
+            instance.headers['set-cookie'][arrayProperty] = value.toString();
           }
           return true;
         },

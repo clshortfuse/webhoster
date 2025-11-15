@@ -1,6 +1,5 @@
 import { Transform } from 'node:stream';
 import {
-  // @ts-expect-error Bad types
   BrotliDecompress, Gunzip, Inflate,
 } from 'node:zlib';
 
@@ -75,15 +74,12 @@ export default class ContentDecoderMiddleware {
           /** @type {import("zlib").Gzip} */
           switch (contentEncoding) {
             case 'deflate':
-              // @ts-expect-error Bad types
               gzipStream = new Inflate(gzipOptions);
               break;
             case 'gzip':
-              // @ts-expect-error Bad types
               gzipStream = new Gunzip(gzipOptions);
               break;
             case 'br':
-              // @ts-expect-error Bad types
               gzipStream = new BrotliDecompress(gzipOptions);
               break;
             default:

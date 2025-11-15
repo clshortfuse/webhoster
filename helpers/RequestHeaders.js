@@ -53,24 +53,32 @@ export default class RequestHeaders extends HeadersHandler {
 
   /** @return {{get:(name:string)=>string,all:(name:string)=>string[]}} */
   get cookies() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const instance = this;
     return {
-      get: (name) => this.cookieEntries[name]?.[0],
-      all: (name) => this.cookieEntries[name] ?? [],
+      get(name) {
+        return instance.cookieEntries[name]?.[0];
+      },
+      all(name) {
+        return instance.cookieEntries[name] ?? [];
+      },
     };
   }
 
   /** @return {Object<string,string[]>} */
   get cookieEntries() {
     if (!this.#cookiesProxy) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const instance = this;
       /** @type {Map<string,string[]>} */
       const arrayProxyMap = new Map();
       this.#cookiesProxy = new Proxy({}, {
-        get: (cookieTarget, cookieName) => {
+        get(cookieTarget, cookieName) {
           if (typeof cookieName !== 'string') return undefined;
           if (arrayProxyMap.has(cookieName)) {
             return arrayProxyMap.get(cookieName);
           }
-          const cookieString = (this.headers.cookie ?? '');
+          const cookieString = (instance.headers.cookie ?? '');
           const split = cookieString.split(';');
           const values = [];
           for (const element of split) {
@@ -83,13 +91,13 @@ export default class RequestHeaders extends HeadersHandler {
                 return Reflect.get(arrayTarget, arrayProperty, receiver);
               }
               if (arrayProperty === 'length') {
-                return getEntriesFromCookie(this.headers.cookie ?? '')
+                return getEntriesFromCookie(instance.headers.cookie ?? '')
                   .filter(([key]) => (key === cookieName)).length;
               }
               if (Number.isNaN(Number.parseInt(arrayProperty, 10))) {
                 return Reflect.get(arrayTarget, arrayProperty, receiver);
               }
-              const entries = getEntriesFromCookie(this.headers.cookie ?? '');
+              const entries = getEntriesFromCookie(instance.headers.cookie ?? '');
               let count = 0;
               for (const entry of entries) {
                 if (entry[0] === cookieName) {
@@ -104,20 +112,20 @@ export default class RequestHeaders extends HeadersHandler {
             set: (arrayTarget, arrayProperty, value, receiver) => {
               Reflect.set(arrayTarget, arrayProperty, value, receiver);
               if (typeof arrayProperty !== 'string') return true;
-              const result = getEntriesFromCookie(this.headers.cookie ?? '').reduce((previous, current) => {
+              const result = getEntriesFromCookie(instance.headers.cookie ?? '').reduce((previous, current) => {
                 if (!current[0]) return previous;
                 if (current[0] === cookieName) return previous;
                 return `${previous};${current[0]}=${current[1]}`;
               }, arrayTarget.map((v) => `${cookieName}=${v}`).join(';'));
-              this.headers.cookie = result;
+              instance.headers.cookie = result;
               return true;
             },
           });
           arrayProxyMap.set(cookieName, arrayProxy);
           return arrayProxy;
         },
-        ownKeys: () => {
-          const cookieString = (this.headers.cookie || '');
+        ownKeys() {
+          const cookieString = (instance.headers.cookie || '');
           const split = cookieString.split(';');
           /** @type {string[]} */
           const keys = [];
@@ -130,8 +138,10 @@ export default class RequestHeaders extends HeadersHandler {
           }
           return keys;
         },
-        has: (target, p) => /** @type {string} */ (this.headers.cookie)?.split(';')
-          .some((cookie) => cookie.split('=')[0]?.trim() === p) ?? false,
+        has(target, p) {
+          return instance.headers.cookie?.split(';')
+            .some((/** @type string */ cookie) => cookie.split('=')[0]?.trim() === p) ?? false;
+        },
         getOwnPropertyDescriptor() {
           return {
             enumerable: true,

@@ -8,8 +8,10 @@ test('HttpRequest.URL', (t) => {
 
   t.is(url, request.url);
 
-  t.assert(typeof request.url === 'string');
-  t.is(url, request.url);
+  const urlObject = new URL(request.url);
+
+  t.assert(urlObject instanceof URL);
+  t.is(url, urlObject.toString());
 });
 
 test('HttpRequest.mediaType', (t) => {

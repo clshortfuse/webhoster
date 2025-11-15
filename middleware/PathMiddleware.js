@@ -35,7 +35,7 @@ export default class PathMiddleware {
   static SUBPATH(entry) {
     const path = Array.isArray(entry) ? entry : [entry];
     return new PathMiddleware({
-      path: path.map((p) => (typeof p === 'string' ? new RegExp(`^(${p})/*.*$`) : p)),
+      path: path.map((p) => (typeof p === 'string' ? new RegExp(`^(${p})($|(/.*$))`) : p)),
       subPath: true,
     });
   }

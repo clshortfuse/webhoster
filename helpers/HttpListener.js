@@ -1,6 +1,7 @@
 import { createServer as createHttpServer } from 'node:http';
 import { createSecureServer as createHttp2Server } from 'node:http2';
 import { createServer as createHttpsServer } from 'node:https';
+import { Server, Socket } from 'node:net';
 
 import HttpHandler from '../lib/HttpHandler.js';
 
@@ -34,6 +35,42 @@ export default class HttpListener {
     }
     return defaultInstance;
   }
+
+  /** @type {(err: Error) => void} */
+  #httpErrorListener;
+
+  /** @type {(err: Error, socket: import('node:net').Socket) => void} */
+  #httpClientErrorListener;
+
+  /** @type {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void} */
+  #httpRequestListener;
+
+  /** @type {(err: Error) => void} */
+  #httpsErrorListener;
+
+  /** @type {(err: Error, socket: import('node:net').Socket) => void} */
+  #httpsClientErrorListener;
+
+  /** @type {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void} */
+  #httpsRequestListener;
+
+  /** @type {(err: Error) => void} */
+  #http2ErrorListener;
+
+  /** @type {(err: Error, socket: import('node:net').Socket) => void} */
+  #http2ClientErrorListener;
+
+  /** @type {(err: Error, session: import('node:http2').Http2Session) => void} */
+  #http2SessionErrorListener;
+
+  /** @type {(session: import('node:http2').Http2Session) => void} */
+  #http2SessionListener;
+
+  /** @type {(stream: import('node:http2').Http2Stream, headers: import('node:http2').IncomingHttpHeaders) => void} */
+  #http2StreamListener;
+
+  /** @type {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void} */
+  #http2RequestListener;
 
   /** @param {HttpListenerOptions} options */
   constructor(options = {}) {
@@ -116,22 +153,22 @@ export default class HttpListener {
           socket.destroy(new Error('SOCKET_TIMEOUT'));
         });
 
-        this.httpServer.addListener('error', (error) => {
-          console.error('HTTP server error', error);
+        // Save listeners as private members for later removal
+        this.httpServer.addListener('error', this.#httpErrorListener = (error) => {
+          // console.error('HTTP server error', err);
         });
-        this.httpServer.addListener('clientError', (error, socket) => {
+        this.httpServer.addListener('clientError', this.#httpClientErrorListener = (error, socket) => {
           if (error?.code === 'ECONNRESET') {
             // console.warn('HTTP client connection reset.');
             return;
           }
-          console.error('HTTP client error', error);
+          // console.error('HTTP client error', err);
           if (socket.destroyed || socket.writableEnded) return;
           socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         });
-
-        this.httpServer.addListener('request', (request, response) => {
-          this.httpHandler.handleHttp1Request(request, response).catch((error) => {
-            console.error('HTTP1 handler failed', error);
+        this.httpServer.addListener('request', this.#httpRequestListener = (request, res) => {
+          this.httpHandler.handleHttp1Request(request, res).catch((error) => {
+            // console.error('HTTP1 handler failed', err);
           });
         });
         resolve(this.httpServer);
@@ -162,22 +199,22 @@ export default class HttpListener {
           socket.destroy(new Error('SOCKET_TIMEOUT'));
         });
 
-        this.httpsServer.addListener('error', (error) => {
-          console.error('HTTPS server error', error);
+        this.httpsServer.addListener('error', this.#httpsErrorListener = (error) => {
+          // console.error('HTTPS server error', err);
         });
-        this.httpsServer.addListener('clientError', (error, socket) => {
+        this.httpsServer.addListener('clientError', this.#httpsClientErrorListener = (error, socket) => {
           if (error?.code === 'ECONNRESET') {
             console.warn('HTTPS client connection reset.');
             return;
           }
-          console.error('HTTPS client error', error);
+          // console.error('HTTPS client error', err);
           if (socket.destroyed) return;
           socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         });
 
-        this.httpsServer.addListener('request', (request, response) => {
-          this.httpHandler.handleHttp1Request(request, response).catch((error) => {
-            console.error('HTTPS handler failed', error);
+        this.httpsServer.addListener('request', this.#httpsRequestListener = (request, res) => {
+          this.httpHandler.handleHttp1Request(request, res).catch((error) => {
+            // console.error('HTTPS handler failed', err);
           });
         });
         resolve(this.httpsServer);
@@ -204,9 +241,10 @@ export default class HttpListener {
         const streams = new Set();
         /** @type {WeakMap<Http2Stream, {timestamp:number, identity:string, path:string}>} */
         const streamMetadata = new WeakMap();
-        setInterval(() => {
+        /** @return {void} */
+        function logUsage() {
           if (global.gc) {
-            console.log('Perfoming garbage collection.');
+            console.debug('Perfoming garbage collection.');
             global.gc();
           }
           for (const reference of sessions) {
@@ -219,7 +257,7 @@ export default class HttpListener {
             if (session.destroyed) {
               console.warn('SESSION destroyed from', metadata.identity, 'since', metadata.timestamp);
             } else {
-              console.log('SESSION alive from', metadata.identity, 'since', metadata.timestamp);
+              console.debug('SESSION alive from', metadata.identity, 'since', metadata.timestamp);
             }
           }
           for (const reference of streams) {
@@ -232,16 +270,38 @@ export default class HttpListener {
             if (stream.destroyed) {
               console.warn('STREAM destroyed from', metadata.identity, 'since', metadata.timestamp, 'for', metadata.path);
             } else {
-              console.log('STREAM alive from', metadata.identity, 'since', metadata.timestamp, 'for', metadata.path);
+              console.debug('STREAM alive from', metadata.identity, 'since', metadata.timestamp, 'for', metadata.path);
             }
           }
           if (sessions.size) {
-            console.log('Active sessions:', sessions.size);
+            console.debug('Active sessions:', sessions.size);
           }
           if (streams.size) {
-            console.log('Active streams:', streams.size);
+            console.debug('Active streams:', streams.size);
           }
-        }, 300_000);
+          if ('process' in globalThis) {
+            if ('getActiveResourcesInfo' in globalThis.process) {
+              console.dir('Active Resources', globalThis.process.getActiveResourcesInfo());
+            }
+            if ('_getActiveRequests' in globalThis.process) {
+              console.dir('Active Requests', globalThis.process._getActiveRequests());
+            }
+            if ('_getActiveHandles' in globalThis.process) {
+              const handles = globalThis.process._getActiveHandles();
+              for (const handle of handles) {
+                if (handle instanceof Socket) {
+                  console.debug('Active Handle (Socket)', `${handle.localAddress}:${handle.localPort} <=> ${handle.remoteAddress}:${handle.remotePort}`);
+                } else if (handle instanceof Server) {
+                  console.debug('Active Handle (Server)', `${handle.address()?.port}`);
+                } else {
+                  console.debug('Active Handle (unknown)', handle);
+                }
+              }
+            }
+          }
+        }
+        // setInterval(logUsage, 300_000);
+        // logUsage();
 
         this.http2Server.setTimeout(120_000, (socket) => {
           if (!socket) {
@@ -254,10 +314,10 @@ export default class HttpListener {
         });
 
         // Error Handlers
-        this.http2Server.addListener('error', (error) => {
+        this.http2Server.addListener('error', this.#http2ErrorListener = (error) => {
           console.error('HTTP/2 server error', error);
         });
-        this.http2Server.addListener('clientError', (error, socket) => {
+        this.http2Server.addListener('clientError', this.#http2ClientErrorListener = (error, socket) => {
           // No clear way to signal back to client why a socket has failed because
           // it's unsure if it's HTTP1 or HTTP2. Just destroy and log server-side.
           if (error?.code === 'ECONNRESET') {
@@ -267,7 +327,7 @@ export default class HttpListener {
           }
           if (!socket.destroyed) socket.destroy(error);
         });
-        this.http2Server.addListener('sessionError', (error, session) => {
+        this.http2Server.addListener('sessionError', this.#http2SessionErrorListener = (error, session) => {
           if (error?.code === 'ECONNRESET') {
             // console.warn('HTTP/2 client connection reset.');
           } else if (error?.message === 'SOCKET_TIMEOUT') {
@@ -278,7 +338,7 @@ export default class HttpListener {
           if (!session.destroyed) session.destroy(error);
         });
 
-        this.http2Server.addListener('session', (session) => {
+        this.http2Server.addListener('session', this.#http2SessionListener = (session) => {
           sessions.add(new WeakRef(session));
           const identity = `${session.socket.remoteFamily}:${session.socket.remoteAddress}:${session.socket.remotePort}`;
           sessionMetadata.set(session, {
@@ -307,7 +367,7 @@ export default class HttpListener {
         });
 
         // Logic handlers
-        this.http2Server.addListener('stream', (stream, headers) => {
+        this.http2Server.addListener('stream', this.#http2StreamListener = (stream, headers) => {
           streams.add(new WeakRef(stream));
           streamMetadata.set(stream, {
             timestamp: performance.now(),
@@ -329,9 +389,9 @@ export default class HttpListener {
             console.error('HTTP2 handler failed.', error);
           });
         });
-        this.http2Server.addListener('request', (request, res) => {
+        this.http2Server.addListener('request', this.#http2RequestListener = (request, res) => {
           if (request.httpVersionMajor >= 2) return;
-          // @ts-expect-error Bad typings
+          // @ts-ignore Ignore typings
           request.setTimeout(300_000, (socket) => {
             if (!socket) {
               // console.warn('HTTP1 in HTTP2 request (unknown) timed out.');
@@ -341,7 +401,6 @@ export default class HttpListener {
             // console.warn(`HTTP1 in HTTP2 request ${identity} timed out.`);
             socket.destroy(new Error('SOCKET_TIMEOUT'));
           });
-          // @ts-expect-error Bad typings
           res.setTimeout(300_000, (socket) => {
             if (!socket) {
               // console.warn('HTTP1 in HTTP2 response (unknown) timed out.');
@@ -394,6 +453,15 @@ export default class HttpListener {
           reject(error);
           return;
         }
+        if (this.#httpRequestListener) {
+          this.httpServer.removeListener('request', this.#httpRequestListener);
+        }
+        if (this.#httpErrorListener) {
+          this.httpServer.removeListener('error', this.#httpErrorListener);
+        }
+        if (this.#httpClientErrorListener) {
+          this.httpServer.removeListener('clientError', this.#httpClientErrorListener);
+        }
         resolve();
       });
     });
@@ -409,9 +477,18 @@ export default class HttpListener {
       this.httpsServer.close((error) => {
         if (error) {
           reject(error);
-        } else {
-          resolve();
+          return;
         }
+        if (this.#httpsRequestListener) {
+          this.httpsServer.removeListener('request', this.#httpsRequestListener);
+        }
+        if (this.#httpsErrorListener) {
+          this.httpsServer.removeListener('error', this.#httpsErrorListener);
+        }
+        if (this.#httpsClientErrorListener) {
+          this.httpsServer.removeListener('clientError', this.#httpsClientErrorListener);
+        }
+        resolve();
       });
     });
   }
@@ -426,9 +503,29 @@ export default class HttpListener {
       this.http2Server.close((error) => {
         if (error) {
           reject(error);
-        } else {
-          resolve();
+          return;
         }
+
+        if (this.#http2ErrorListener) {
+          this.http2Server.removeListener('error', this.#http2ErrorListener);
+        }
+        if (this.#http2ClientErrorListener) {
+          this.http2Server.removeListener('clientError', this.#http2ClientErrorListener);
+        }
+        if (this.#http2SessionErrorListener) {
+          this.http2Server.removeListener('sessionError', this.#http2SessionErrorListener);
+        }
+        if (this.#http2SessionListener) {
+          this.http2Server.removeListener('session', this.#http2SessionListener);
+        }
+        if (this.#http2StreamListener) {
+          this.http2Server.removeListener('stream', this.#http2StreamListener);
+        }
+        if (this.#http2RequestListener) {
+          this.http2Server.removeListener('request', this.#http2RequestListener);
+        }
+
+        resolve();
       });
     });
   }

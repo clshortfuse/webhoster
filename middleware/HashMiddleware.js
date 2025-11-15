@@ -49,9 +49,9 @@ export default class HashMiddleware {
             hashStream.destroy();
           } else {
             // Manually pipe
-            const isSync = hashStream.write(chunk, (err) => {
+            const isSync = hashStream.write(chunk, (error) => {
               if (!isSync) {
-                callback(err, chunk);
+                callback(error, chunk);
               }
             });
             if (!isSync) return;
@@ -85,7 +85,7 @@ export default class HashMiddleware {
       this.addTransformStream(response);
       return;
     }
-    if (!Buffer.isBuffer(response.body) || !response.body.byteLength) return;
+    if (!Buffer.isBuffer(response.body) || response.body.byteLength === 0) return;
 
     const { algorithm, digest } = this;
     const hash = createHash(algorithm).update(response.body).digest(digest);

@@ -36,6 +36,13 @@
  */
 
 /**
+ * @template {any} [T=any]
+ * @callback MiddlewareResponseFunction
+ * @param {{ response: HttpTransaction<T>['response'] }} transaction
+ * @return {MiddlewareFunctionResult}
+ */
+
+/**
  * @this {undefined}
  * @callback StaticMiddlewareFunction
  * @param {!HttpTransaction} transaction
