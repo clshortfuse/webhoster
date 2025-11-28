@@ -32,7 +32,9 @@ export async function start(options) {
     // Push by reference to allow post modification
     HttpHandler.defaultInstance.middleware.push(options.middleware);
   }
-  if (!options.errorHandlers) {
+  if (options.errorHandlers) {
+    HttpHandler.defaultInstance.errorHandlers.push(...options.errorHandlers);
+  } else {
     HttpHandler.defaultInstance.errorHandlers.push(
       {
         onError() {

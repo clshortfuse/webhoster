@@ -82,9 +82,9 @@ test.serial('starter.start respects provided errorHandlers and pushes middleware
   const lastMw = handler.middleware.at(-1);
   t.is(lastMw, customMiddleware);
 
-  // The implementation does not automatically append provided `errorHandlers`;
-  // it only avoids adding the default when `options.errorHandlers` is supplied.
-  t.is(handler.errorHandlers.length, ehLength);
+  // Provided errorHandlers are appended to the handler.
+  t.is(handler.errorHandlers.length, ehLength + customHandlers.length);
+  t.is(handler.errorHandlers.at(-1), customHandlers.at(-1));
 
   await listener.stopHttpServer();
 
