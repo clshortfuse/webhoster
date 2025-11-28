@@ -74,6 +74,11 @@ export default class HttpListener {
 
   /** @param {HttpListenerOptions} options */
   constructor(options = {}) {
+    this.configure(options);
+  }
+
+  /** @param {HttpListenerOptions} options */
+  configure(options = {}) {
     this.httpHandler = options.httpHandler ?? HttpHandler.defaultInstance;
     this.insecurePort = options.insecurePort ?? 8080;
     this.insecureHost = options.insecureHost;
