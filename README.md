@@ -1,5 +1,14 @@
 ![npm](https://img.shields.io/npm/v/webhoster) ![David](https://img.shields.io/david/clshortfuse/webhoster) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/clshortfuse/webhoster) ![node-current](https://img.shields.io/node/v/webhoster) ![npm](https://img.shields.io/npm/dw/webhoster) ![GitHub top language](https://img.shields.io/github/languages/top/clshortfuse/webhoster)
 
+<!-- Per-node test status badges (matrix job names must match `test-matrix.yml` job names) -->
+![Node 16.13](https://img.shields.io/github/actions/workflow/status/clshortfuse/webhoster/test-matrix.yml?branch=master&label=Node%2016.13&job=Test%20on%20Node%2016.13)
+![Node 16](https://img.shields.io/github/actions/workflow/status/clshortfuse/webhoster/test-matrix.yml?branch=master&label=Node%2016&job=Test%20on%20Node%2016)
+![Node 18](https://img.shields.io/github/actions/workflow/status/clshortfuse/webhoster/test-matrix.yml?branch=master&label=Node%2018&job=Test%20on%20Node%2018)
+![Node 20](https://img.shields.io/github/actions/workflow/status/clshortfuse/webhoster/test-matrix.yml?branch=master&label=Node%2020&job=Test%20on%20Node%2020)
+![Node 22](https://img.shields.io/github/actions/workflow/status/clshortfuse/webhoster/test-matrix.yml?branch=master&label=Node%2022&job=Test%20on%20Node%2022)
+
+<!-- Note: these badges reflect the job named "Test on Node <version>" in `.github/workflows/test-matrix.yml`. -->
+
 # webhoster
 
 An opt-in, stream-based, tree-processing approach to Web Hosting with NodeJS.
