@@ -46,6 +46,17 @@
     "cors",
     "gzip"
   ],
+  "files": [
+    "data",
+    "errata",
+    "helpers",
+    "lib",
+    "middleware",
+    "polyfills",
+    "templates",
+    "types",
+    "utils"
+  ],
   "license": "MIT",
   "name": "webhoster",
   "scripts": {
