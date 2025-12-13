@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /**
  * @template {any} [T=any]
  * @typedef {import('../lib/HttpTransaction.js').default<T>} HttpTransaction<T>
@@ -16,17 +17,7 @@
 
 /** @typedef {import('node:stream').Duplex} Duplex */
 
-/** @typedef {import('./middleware.js').Middleware} Middleware */
-
-/** @typedef {true|false|0} MiddlewareFlowInstruction */
-
-/** @typedef {'GET'|'HEAD'|'POST'|'PUT'|'DELETE'|'CONNECT'|'OPTIONS'|'TRACE'|'PATCH'} RequestMethod */
-
-/** @typedef {0|true|false|null|undefined|void} MiddlewareFunctionResultType */
-
-/** @typedef {Promise<Middleware>|Middleware} MiddlewareFunctionResult */
-
-/** @typedef {Record<string,any>|number|import('stream').Readable|Buffer|string} MiddlewareContent */
+/** @typedef {MiddlewareExecutor|MiddlewareStaticExecutor|MiddlewareErrorHandler|MiddlewareStaticErrorHandler|MiddlewareStaticExecutor} IMiddleware */
 
 /**
  * @template {any} [T=any]
@@ -34,6 +25,19 @@
  * @param {!HttpTransaction<T>} transaction
  * @return {MiddlewareFunctionResult}
  */
+
+/** @typedef {Promise<Middleware>|Middleware} MiddlewareFunctionResult */
+
+/** @typedef {IMiddleware|MiddlewareFunction|MiddlewareContent|MiddlewareFunctionResultType} MiddlewareBase */
+/** @typedef {MiddlewareBase|MiddlewareBase[]|Set<MiddlewareBase>} Middleware */
+
+/** @typedef {true|false|0} MiddlewareFlowInstruction */
+
+/** @typedef {'GET'|'HEAD'|'POST'|'PUT'|'DELETE'|'CONNECT'|'OPTIONS'|'TRACE'|'PATCH'} RequestMethod */
+
+/** @typedef {0|true|false|null|undefined|void} MiddlewareFunctionResultType */
+
+/** @typedef {Record<string,any>|number|import('stream').Readable|Buffer|string} MiddlewareContent */
 
 /**
  * @template {any} [T=any]
@@ -73,10 +77,6 @@
 /**
  * @typedef MiddlewareErrorHandler
  * @prop {MiddlewareFunction} onError
- */
-
-/**
- * @typedef {MiddlewareExecutor|MiddlewareStaticExecutor|MiddlewareErrorHandler|MiddlewareStaticErrorHandler|MiddlewareStaticExecutor} IMiddleware
  */
 
 /**
