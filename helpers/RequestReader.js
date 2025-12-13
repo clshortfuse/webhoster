@@ -2,7 +2,6 @@
 
 import { TextDecoder } from 'node:util';
 import AsyncObject from '../utils/AsyncObject.js';
-import { noop } from '../utils/function.js';
 import RequestHeaders from './RequestHeaders.js';
 
 /**
@@ -11,7 +10,6 @@ import RequestHeaders from './RequestHeaders.js';
  */
 
 const BUFFER_SIZE = 4096;
-const STREAM_WAIT_MS = 0;
 
 /** @type {WeakMap<HttpRequest, RequestReader>} */
 const cache = new WeakMap();
@@ -45,8 +43,6 @@ export default class RequestReader {
     const hp = new RequestHeaders(this.request);
     let data = Buffer.allocUnsafe(Math.min(BUFFER_SIZE, hp.contentLength || BUFFER_SIZE));
     let bytesWritten = 0;
-    /** @type {NodeJS.Timeout} */
-    let sendPingTimeout = null;
     this.request.stream.on('readable', () => {
       let chunk;
       // eslint-disable-next-line no-cond-assign
@@ -70,15 +66,8 @@ export default class RequestReader {
         }
         bytesWritten += buffer.copy(data, bytesWritten);
       }
-      clearTimeout(sendPingTimeout);
-      if (this.request.canPing) {
-        sendPingTimeout = setTimeout(() => {
-          this.request.ping().catch(noop);
-        }, STREAM_WAIT_MS);
-      }
     });
     this.request.stream.on('end', () => {
-      clearTimeout(sendPingTimeout);
       if (data.length > bytesWritten) {
         // Must partition to clear unsafe allocation
         data = data.subarray(0, bytesWritten);
