@@ -24,7 +24,16 @@
     "node": ">v16.13"
   },
   "exports": {
-    "./*": "./*"
+    "./data/*": "./data/*",
+    "./errata/*": "./errata/*",
+    "./examples/*": "./examples/*",
+    "./helpers/*": "./helpers/*",
+    "./lib/*": "./lib/*",
+    "./middlewares/*": "./middlewares/*",
+    "./polyfills/*": "./polyfills/*",
+    "./templates/*": "./templates/*",
+    "./types/*": "./types/*",
+    "./utils/*": "./utils/*"
   },
   "keywords": [
     "http",
@@ -42,6 +51,7 @@
   "scripts": {
     "debug-test": "ava --serial",
     "test": "c8 ava",
+    "prepack": "rm -Rf typings && tsc --emitDeclarationOnly",
     "pretestallsync": "rimraf coverage",
     "testallsync": "scripts/test-all-sync.sh",
     "posttestallsync": "c8 report",
@@ -50,5 +60,6 @@
     "posttestall": "c8 report"
   },
   "type": "module",
+  "types": "typings/index.d.ts",
   "version": "0.3.2"
 }

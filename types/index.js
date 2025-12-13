@@ -16,7 +16,7 @@
 
 /** @typedef {import('node:stream').Duplex} Duplex */
 
-/** @typedef {import('./typings').Middleware} Middleware */
+/** @typedef {import('./typings.js').Middleware} Middleware */
 
 /** @typedef {true|false|0} MiddlewareFlowInstruction */
 

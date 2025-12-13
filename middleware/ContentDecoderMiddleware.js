@@ -1,5 +1,6 @@
 import { Transform } from 'node:stream';
 import {
+  // @ts-expect-error Bad typings
   BrotliDecompress, Gunzip, Inflate,
 } from 'node:zlib';
 
@@ -69,17 +70,20 @@ export default class ContentDecoderMiddleware {
     const gzipOptions = { chunkSize: this.chunkSize };
     const newDownstream = new Transform({
 
-      read: (...args) => {
+      read: (...arguments_) => {
         if (!initialized) {
           /** @type {import("zlib").Gzip} */
           switch (contentEncoding) {
             case 'deflate':
+              // @ts-expect-error Bad typings
               gzipStream = new Inflate(gzipOptions);
               break;
             case 'gzip':
+              // @ts-expect-error Bad typings
               gzipStream = new Gunzip(gzipOptions);
               break;
             case 'br':
+              // @ts-expect-error Bad typings
               gzipStream = new BrotliDecompress(gzipOptions);
               break;
             default:
@@ -89,7 +93,7 @@ export default class ContentDecoderMiddleware {
           // To newDownstream <= gzipStream < =inputStream
 
           // Forward errors
-          gzipStream.on('error', (err) => inputStream.emit('error', err));
+          gzipStream.on('error', (error) => inputStream.emit('error', error));
           gzipStream.on('data', (chunk) => newDownstream.push(chunk));
 
           inputStream.on('end', () => gzipStream.end());
@@ -104,12 +108,13 @@ export default class ContentDecoderMiddleware {
           initialized = true;
         }
 
-        Transform.prototype._read.call(this, ...args);
+        // eslint-disable-next-line no-underscore-dangle
+        Transform.prototype._read.call(this, ...arguments_);
       },
       transform: (chunk, chunkEncoding, callback) => {
-        gzipStream.write(chunk, (err) => {
-          if (err) console.error(err);
-          callback(err);
+        gzipStream.write(chunk, (error) => {
+          if (error) console.error(error);
+          callback(error);
         });
       },
       flush: (callback) => {
@@ -129,7 +134,6 @@ export default class ContentDecoderMiddleware {
       },
     });
 
-    newDownstream.tag = 'ContentDecoder';
     inputStream = request.addDownstream(newDownstream, { autoPause: true });
 
     return CONTINUE;

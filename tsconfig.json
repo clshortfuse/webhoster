@@ -1,12 +1,30 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "checkJs": true,
     "noImplicitAny": true,
+    "declaration": true,
+    "declarationMap": true,
+    "declarationDir": "typings",
+    "outDir": "/dev/null",
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "node"
   },
+  "include": [
+    "./data/*",
+    "./errata/*",
+    "./examples/*",
+    "./helpers/*",
+    "./lib/*",
+    "./middlewares/*",
+    "./polyfills/*",
+    "./templates/*",
+    "./types/*",
+    "./utils/*"
+  ],
   "exclude": [
-    "**/node_modules/*"
+    "**/node_modules/*",
+    "**/test/*"
   ]
 }

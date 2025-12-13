@@ -75,8 +75,9 @@ export default class ContentEncoderMiddleware {
     let encoding = COMPATIBLE_ENCODINGS[0];
     const allowWildcards = (encodings.get('*')?.q !== 0);
     const encodingEntries = [...encodings.entries()];
-    // @ts-expect-error Cannot cast to COMPATIBLE_ENCODINGS
-    encoding = (encodingEntries.find(([value, spec]) => spec.q !== 0 && COMPATIBLE_ENCODINGS.includes(value))?.[0]);
+    encoding = /** @type {COMPATIBLE_ENCODING} */ (encodingEntries
+      .find(([value, spec]) => spec.q !== 0
+        && COMPATIBLE_ENCODINGS.includes(/** @type {COMPATIBLE_ENCODING} */ (value)))?.[0]);
     if (allowWildcards && (encoding === '*' || !encoding)) {
       // Server preference
       // Get first compatible encoding not specified
@@ -154,7 +155,7 @@ export default class ContentEncoderMiddleware {
       encoding = getContentEncoding().toLowerCase?.();
     }
 
-    const isEventStream = response.headers['content-type']?.includes('text/event-stream');
+    const isEventStream = /** @type {string|null} */ (response.headers['content-type'])?.includes('text/event-stream');
 
     let newStream;
     switch (encoding) {
