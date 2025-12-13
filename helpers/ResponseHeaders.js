@@ -22,18 +22,17 @@ const COOKIE_DETAIL_KEYS = [
 const instanceCache = new WeakMap();
 
 export default class ResponseHeaders extends HeadersHandler {
-  /** @param {HttpResponse} res */
-  // @ts-ignore Cached constructor
-  constructor(res) {
-    const instance = instanceCache.get(res);
+  /** @param {HttpResponse} response */
+  constructor(response) {
+    const instance = instanceCache.get(response);
     if (instance) return instance;
-    super(res.headers);
-    instanceCache.set(res, this);
+    super(response.headers);
+    instanceCache.set(response, this);
   }
 
-  /** @param {HttpResponse} res */
-  static cookies(res) {
-    const instance = new ResponseHeaders(res);
+  /** @param {HttpResponse} response */
+  static cookies(response) {
+    const instance = new ResponseHeaders(response);
     return instance.cookies;
   }
 
