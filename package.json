@@ -51,7 +51,7 @@
   "scripts": {
     "debug-test": "ava --serial",
     "test": "c8 ava",
-    "prepack": "rm -Rf typings && tsc --emitDeclarationOnly",
+    "prepublishOnly": "rm -Rf typings && tsc --emitDeclarationOnly",
     "pretestallsync": "rimraf coverage",
     "testallsync": "scripts/test-all-sync.sh",
     "posttestallsync": "c8 report",
