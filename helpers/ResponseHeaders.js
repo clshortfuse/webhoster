@@ -3,7 +3,7 @@ import CookieObject from '../data/CookieObject.js';
 import HeadersHandler from './HeadersParser.js';
 
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../types').CookieDetails} CookieDetails */
+/** @typedef {import('../data/custom-types.js').CookieDetails} CookieDetails */
 
 /** @type {(keyof CookieDetails)[]} */
 const COOKIE_DETAIL_KEYS = [

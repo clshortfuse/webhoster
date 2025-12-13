@@ -3,7 +3,7 @@ import {
   MiddlewareContent,
   MiddlewareFunction,
   MiddlewareFunctionResultType,
-} from './index.js';
+} from './custom-types.js';
 
 export type Middleware =
   | IMiddleware

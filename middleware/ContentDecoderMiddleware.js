@@ -4,7 +4,7 @@ import {
   BrotliDecompress, Gunzip, Inflate,
 } from 'node:zlib';
 
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
 
 /**
  * @typedef ContentDecoderMiddlewareOptions

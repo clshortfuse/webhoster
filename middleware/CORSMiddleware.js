@@ -1,6 +1,6 @@
-/** @typedef {import('../types').IMiddleware} IMiddleware */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').RequestMethod} RequestMethod */
+/** @typedef {import('../data/custom-types.js').IMiddleware} IMiddleware */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').RequestMethod} RequestMethod */
 
 /**
  * @typedef CORSMiddlewareOptions

@@ -1,4 +1,4 @@
-/** @typedef {import('../types').CookieDetails} CookieDetails */
+/** @typedef {import('./custom-types.js').CookieDetails} CookieDetails */
 
 /** @private */
 export default class CookieObject {

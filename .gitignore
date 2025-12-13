@@ -1,6 +1,6 @@
 node_modules/*
 certificates/*
 coverage/*
-typings/*
+types/*
 *.cjs
 **/.DS_Store

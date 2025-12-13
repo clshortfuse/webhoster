@@ -1,7 +1,7 @@
 import CaseInsensitiveObject from '../utils/CaseInsensitiveObject.js';
 
-/** @typedef {import('../types').IMiddleware} IMiddleware */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').IMiddleware} IMiddleware */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
 
 /**
  * @typedef {Object} CaseInsensitiveHeadersMiddlewareOptions

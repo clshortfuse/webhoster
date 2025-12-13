@@ -13,8 +13,8 @@ import HeadMethodMiddleware from '../middleware/HeadMethodMiddleware.js';
  * @param {Object} options
  * @param {string} [options.host='0.0.0.0']
  * @param {number} [options.port=8080]
- * @param {import('../types').Middleware[]} [options.middleware]
- * @param {import('../types').MiddlewareErrorHandler[]} [options.errorHandlers]
+ * @param {import('../data/custom-types.js').Middleware[]} [options.middleware]
+ * @param {import('../data/custom-types.js').MiddlewareErrorHandler[]} [options.errorHandlers]
  * @return {Promise<import('../helpers/HttpListener.js').default>}
  */
 export async function start(options) {

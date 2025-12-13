@@ -1,5 +1,5 @@
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
 
 /**
  * The application/x-www-form-urlencoded format is in many ways an aberrant monstrosity,

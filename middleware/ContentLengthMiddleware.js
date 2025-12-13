@@ -1,6 +1,6 @@
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').ResponseFinalizer} ResponseFinalizer */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').ResponseFinalizer} ResponseFinalizer */
 
 import { Transform } from 'node:stream';
 

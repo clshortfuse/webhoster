@@ -1,7 +1,7 @@
 /**
  *
  * @param {?string} contentType
- * @return {import('../types/index.js').MediaType}
+ * @return {import('../data/custom-types.js').MediaType}
  */
 export function parseContentType(contentType) {
   let type;

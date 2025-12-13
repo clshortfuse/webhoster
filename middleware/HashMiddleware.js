@@ -4,8 +4,8 @@ import { Transform } from 'node:stream';
 /** @typedef {import('node:crypto').BinaryToTextEncoding} BinaryToTextEncoding */
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../types/index.js').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types/index.js').ResponseFinalizer} ResponseFinalizer */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').ResponseFinalizer} ResponseFinalizer */
 
 const DEFAULT_ALGORITHM = 'sha1';
 /** @type {BinaryToTextEncoding} */

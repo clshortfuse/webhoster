@@ -5,7 +5,7 @@
     "noImplicitAny": true,
     "declaration": true,
     "declarationMap": true,
-    "declarationDir": "typings",
+    "declarationDir": "types",
     "outDir": "/dev/null",
     "target": "es2022",
     "module": "esnext",
@@ -17,10 +17,9 @@
     "./examples/*",
     "./helpers/*",
     "./lib/*",
-    "./middlewares/*",
+    "./middleware/*",
     "./polyfills/*",
     "./templates/*",
-    "./types/*",
     "./utils/*"
   ],
   "exclude": [

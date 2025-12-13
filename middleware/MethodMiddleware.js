@@ -1,6 +1,6 @@
-/** @typedef {import('../types').HttpTransaction} HttpTransaction */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').RequestMethod} RequestMethod */
+/** @typedef {import('../data/custom-types.js').HttpTransaction} HttpTransaction */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').RequestMethod} RequestMethod */
 
 /** @typedef {RegExp|RequestMethod} MethodEntry */
 

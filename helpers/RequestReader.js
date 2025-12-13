@@ -1,4 +1,4 @@
-/** @typedef {import('../types').HttpRequest} HttpRequest */
+/** @typedef {import('../data/custom-types.js').HttpRequest} HttpRequest */
 
 import { TextDecoder } from 'node:util';
 import AsyncObject from '../utils/AsyncObject.js';

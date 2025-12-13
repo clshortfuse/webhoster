@@ -15,8 +15,8 @@ const { BROTLI_OPERATION_FLUSH, Z_SYNC_FLUSH } = ZlibContants;
 /** @typedef {import('http').IncomingHttpHeaders} IncomingHttpHeaders */
 /** @typedef {import('../lib/HttpRequest.js').default} HttpRequest */
 /** @typedef {import('../lib/HttpResponse.js').default} HttpResponse */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types').ResponseFinalizer} ResponseFinalizer */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').ResponseFinalizer} ResponseFinalizer */
 
 /** @typedef {'br'|'gzip'|'deflate'|'identity'|'*'} COMPATIBLE_ENCODING */
 

@@ -1,6 +1,6 @@
-/** @typedef {import('../types/index.js').IMiddleware} IMiddleware */
-/** @typedef {import('../types/index.js').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types/index.js').ResponseFinalizer} ResponseFinalizer */
+/** @typedef {import('../data/custom-types.js').IMiddleware} IMiddleware */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').ResponseFinalizer} ResponseFinalizer */
 
 /**
  * @typedef {Object} SendStringMiddlewareOptions

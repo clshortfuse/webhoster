@@ -1,7 +1,7 @@
-/** @typedef {import('../types').IMiddleware} IMiddleware */
-/** @typedef {import('../types').MiddlewareResponseFunction} MiddlewareResponseFunction */
-/** @typedef {import('../types').MiddlewareFunction} MiddlewareFunction */
-/** @typedef {import('../types/index.js').ResponseFinalizer} ResponseFinalizer */
+/** @typedef {import('../data/custom-types.js').IMiddleware} IMiddleware */
+/** @typedef {import('../data/custom-types.js').MiddlewareResponseFunction} MiddlewareResponseFunction */
+/** @typedef {import('../data/custom-types.js').MiddlewareFunction} MiddlewareFunction */
+/** @typedef {import('../data/custom-types.js').ResponseFinalizer} ResponseFinalizer */
 
 /**
  * @typedef {Object} SendJsonMiddlewareOptions

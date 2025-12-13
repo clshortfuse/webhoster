@@ -39,7 +39,7 @@ For now, take a look at [/test/index.js](/test/index.js)
 * `.defaultInstance` - (`HttpHandler`) - Returns a instance of `HttpHandler` that can be accessed staticly.
 * `.middleware` - (`Middleware[]`) - An array of middleware operations to iterate through when handling a request. It is recommended to create isolated branches (eg: `/images/`; `/api/`; `/views/`; etc.).
 * `.errorHandlers` - (`MiddlewareErrorHandler[]`) - An array of `MiddlewareErrorHandler` that will handle errors and respond appropriately (eg: `res.status = 500`)
-* `.handleRequest` - (`function(MiddlewareFunctionParams):Promise<HttpResponse>`) - handles logic for calling middleware and error handlers. Unlikely to be used directly.
+* `.handleRequest` - (`function(HttpTransaction):Promise<HttpResponse>`) - handles logic for calling middleware and error handlers. Unlikely to be used directly.
 * `.handleHttp1Request` - (`function(IncomingMessage, ServerResponse):Promise<HttpResponse>`) - constructs a new `HttpRequest` and `HttpResponse` based on the HTTP1 parameters and passes it to `handleRequest`
 * `.handleHttp2Stream` - (`function(ServerHttp2Stream, IncomingHttpHeaders, HttpResponseOptions):Promise<HttpResponse>`) - constructs a new `HttpRequest` and `HttpResponse` based on the HTTP2 parameters and passes it to `handleRequest`
 
@@ -141,7 +141,7 @@ async function onGetIndexPage(transaction) {
 
 Middleware logic flows in a tree structure, allowing for `continue`, `break`, or `end`.
 
-A `MiddlewareFunction` is a function that accepts a `MiddlewareFunctionParams` object structured as `{ res: HttpRequest, res: HttpResponse }`. The function can return a instruction with the step in the tree-based logic, status code, or content body to be handled. It maybe return any of these instructions with any of the values as a literal, a `Promise`, or `PromiseLike`:
+A `MiddlewareFunction` is a function that accepts a `HttpTransaction` object structured as `{ res: HttpRequest, res: HttpResponse }`. The function can return a instruction with the step in the tree-based logic, status code, or content body to be handled. It maybe return any of these instructions with any of the values as a literal, a `Promise`, or `PromiseLike`:
 
 * `HttpHandler.CONTINUE`: Continues on the current branch to the next middleware, or moves to the next branch if there are no siblings left. `alias: true|void|null|undefined`
 * `HttpHandler.BREAK`: Breaks from the current middleware branch, and continues to the next branch. `alias: false`
@@ -151,7 +151,7 @@ A `MiddlewareFunction` is a function that accepts a `MiddlewareFunctionParams` o
 * `Array`: Explicitly passed to `HttpResponse.end()`. This is to support sending an `Array` object instead having it becoming an inline middleware branch.
 * `any`: Any other value returned would automatically be passed to `HttpResponse.end()` which, in turn, uses it's own content handlers (eg: `JSON`; `Readable`), and finally terminates the middleware tree.
 
-A `MiddlewareFilter` is a function that accepts a `MiddlewareFunctionParams` and returns a `boolean` or `Promise<boolean>` signaling whether to continue in the branch. `true` translates to `HttpHandler.CONTINUE`. `false` translates to `HttpHandler.BREAK`. There is no support for `HttpHandler.END` logic in a MiddlewareFilter by design.
+A `MiddlewareFilter` is a function that accepts a `HttpTransaction` and returns a `boolean` or `Promise<boolean>` signaling whether to continue in the branch. `true` translates to `HttpHandler.CONTINUE`. `false` translates to `HttpHandler.BREAK`. There is no support for `HttpHandler.END` logic in a MiddlewareFilter by design.
 
 A `MiddlewareErrorHandler` is an `Object` with a `onError` property. `onError` is like a MiddlewareFunction, but includes an `err` item in its parameter object. When the handler is in an error state, it will bubble upwards while searching for the next `MiddlewareErrorHandler`.
 
@@ -163,7 +163,7 @@ To support branching, `Middleware` can also be a `Iterable<Middleware>` (eg: `Se
 
 ### Response Middleware
 * [AuthHeaders](./middleware/AutoHeadersMiddleware.js) - Automatically sends response headers before writing or ending a response stream
-* [ContentLength](./middleware/contentLengthMiddleware.js) - Sets `Content-Length` based on response stream content writes
+* [ContentLength](./middleware/ContentLengthMiddleware.js) - Sets `Content-Length` based on response stream content writes
 * [Hash](./middleware/HashMiddleware.js) - Sets `ETag`, `Digest`, and `Content-MD5` response headers automatically
 * [ContentEncoder](./middleware/ContentEncoderMiddleware.js) - Applies `Content-Encoding` to response based on `Accept-Encoding` request header
 * [SendJson](./middleware/SendJsonMiddleware.js) - Adds response content processor that encodes objects and arrays to JSON string. Sets `application/json;charset=utf-8`, if content-type not set.
