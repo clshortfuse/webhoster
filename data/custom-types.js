@@ -28,8 +28,11 @@
 
 /** @typedef {Promise<Middleware>|Middleware} MiddlewareFunctionResult */
 
-/** @typedef {IMiddleware|MiddlewareFunction|MiddlewareContent|MiddlewareFunctionResultType} MiddlewareBase */
-/** @typedef {MiddlewareBase|MiddlewareBase[]|Set<MiddlewareBase>} Middleware */
+/** @typedef {Middleware[]} MiddlewareArray */
+
+/** @typedef {Set<Middleware>} MiddlewareSet */
+
+/** @typedef {IMiddleware|MiddlewareFunction|MiddlewareContent|MiddlewareFunctionResultType|MiddlewareSet|MiddlewareArray} Middleware */
 
 /** @typedef {true|false|0} MiddlewareFlowInstruction */
 
