@@ -34,17 +34,17 @@ export default class FormData {
 
     if (typeof File === 'undefined') {
       if (!('name' in value) && !('lastModified' in value)) {
-        /** @type {File} */
         // eslint-disable-next-line unicorn/prefer-spread
-        const file = Object.defineProperties(value.slice(), {
+        const file = /** @type {File} */ (Object.defineProperties(value.slice(), {
           name: {
             value: filename === undefined ? 'blob' : filename,
           },
           lastModified: {
             value: Date.now(),
           },
+          webkitRelativePath: { value: '' },
           toString: { value: () => '[object File]' },
-        });
+        }));
         return {
           name: FormData.#scalarValue(name),
           value: file,
@@ -52,7 +52,8 @@ export default class FormData {
       }
       return {
         name: FormData.#scalarValue(name),
-        value,
+        // eslint-disable-next-line object-shorthand
+        value: /** @type {File} */ (value),
       };
     }
     if (value instanceof File) {
@@ -75,7 +76,6 @@ export default class FormData {
    */
   append(name, value, filename) {
     const entry = FormData.#createEntry(name, value, filename);
-    console.log(entry);
     if (this.#list.has(entry.name)) {
       this.#list.get(entry.name).push(entry.value);
     } else {

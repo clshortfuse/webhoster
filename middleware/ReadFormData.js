@@ -70,9 +70,12 @@ async function parseFormUrlEncoded(request) {
 const CONTENT_READER = {
   type: 'application',
   subtype: 'x-www-form-urlencoded',
-  parse: async (/** @type {HttpRequest} */ request) => Object.fromEntries(
-    await parseFormUrlEncoded(request),
-  ),
+  /** @this {HttpRequest} */
+  parse: async function parse() {
+    return Object.fromEntries(
+      await parseFormUrlEncoded(this),
+    );
+  },
 };
 
 /**
