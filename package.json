@@ -18,7 +18,9 @@
     "eslint-plugin-canonical": "^4.18.1",
     "eslint-plugin-jsdoc": "^46.10.1",
     "eslint-plugin-n": "^16.6.2",
-    "eslint-plugin-unicorn": "^48.0.1"
+    "eslint-plugin-unicorn": "^48.0.1",
+    "rimraf": "^4.4.1",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">v16.13"
@@ -26,11 +28,10 @@
   "exports": {
     "./data/*": "./data/*",
     "./errata/*": "./errata/*",
-    "./examples/*": "./examples/*",
     "./helpers/*": "./helpers/*",
     "./lib/*": "./lib/*",
     "./middleware/*": "./middleware/*",
-    "./polyfills/*": "./polyfills/*",
+    "./polyfill/*": "./polyfill/*",
     "./templates/*": "./templates/*",
     "./types/*": "./types/*",
     "./utils/*": "./utils/*"
@@ -52,7 +53,7 @@
     "helpers",
     "lib",
     "middleware",
-    "polyfills",
+    "polyfill",
     "templates",
     "types",
     "utils"
@@ -70,6 +71,14 @@
     "testall": "scripts/test-all.sh",
     "posttestall": "c8 report"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clshortfuse/webhoster.git"
+  },
+  "bugs": {
+    "url": "https://github.com/clshortfuse/webhoster/issues"
+  },
+  "homepage": "https://github.com/clshortfuse/webhoster#readme",
   "type": "module",
   "typesVersions": {
     "*": {

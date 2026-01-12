@@ -18,7 +18,7 @@
     "./helpers/*",
     "./lib/*",
     "./middleware/*",
-    "./polyfills/*",
+    "./polyfill/*",
     "./templates/*",
     "./utils/*"
   ],
