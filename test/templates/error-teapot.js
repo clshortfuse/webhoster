@@ -27,7 +27,7 @@ test.serial('custom error handler returns 418 I\'m a teapot', async (t) => {
   t.truthy(addr && addr.port, 'server bound');
 
   const result = await new Promise((resolve, reject) => {
-    const req = http.get({ port: addr.port, path: '/' }, (res) => {
+    const req = http.get({ host: '127.0.0.1', port: addr.port, path: '/' }, (res) => {
       let data = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => { data += chunk; });
