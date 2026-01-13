@@ -5,6 +5,23 @@ import HttpListener from '../../helpers/HttpListener.js';
 import HttpHandler from '../../lib/HttpHandler.js';
 import ReadFormData from '../../middleware/ReadFormData.js';
 import SendJsonMiddleware from '../../middleware/SendJsonMiddleware.js';
+import PolyfillFormData from '../../polyfill/FormData.js';
+
+const originalFormData = globalThis.FormData;
+
+test.before(() => {
+  if (!globalThis.FormData) {
+    globalThis.FormData = PolyfillFormData;
+  }
+});
+
+test.after.always(() => {
+  if (originalFormData === undefined) {
+    delete globalThis.FormData;
+  } else {
+    globalThis.FormData = originalFormData;
+  }
+});
 
 test('new ReadFormData()', (t) => {
   const instance = new ReadFormData();
