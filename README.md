@@ -31,6 +31,10 @@ By default, the framework does nothing. It parses no headers. It writes no heade
 
 For now, take a look at [/test/index.js](/test/index.js)
 
+## Docs
+
+Start at [docs/README.md](./docs/README.md) for the documentation index.
+
 ## Core
 
 ### [HttpHandler.js](/lib/HttpHandler.js)
